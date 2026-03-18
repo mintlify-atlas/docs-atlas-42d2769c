@@ -69,14 +69,14 @@ All API paths are exported from `src/utils/enums/endpoints.js`:
 | `change_password` | `POST /v2/cashier/change-password` |
 | `forget_password` | `POST /v2/cashier/forget-password` |
 | `change_pin` | `POST /v2/cashier/change-pin` |
-| `refund` | `POST /v2/cashier/transactions/refund/:id` |
-| `cancel` | `POST /v2/cashier/transactions/cancel/:id` |
+| `refund` | `GET /v2/cashier/transactions/refund/:id` |
+| `cancel` | `GET /v2/cashier/transactions/cancel/:id` |
 | `verify_otp` | `POST /v2/cashier/verify-otp` |
 | `reset_password` | `POST /v2/cashier/reset-password` |
 | `cashier_notification` | `GET /v2/cashier/cashier_notification` |
-| `read_notification` | `POST /v2/readcashier_notification/:id` |
-| `start_shift` | `POST /v2/cashier/shift/start` |
-| `end_shift` | `POST /v2/cashier/shift/end` |
+| `read_notification` | `GET /v2/readcashier_notification/:id` |
+| `start_shift` | `GET /v2/cashier/shift/start` |
+| `end_shift` | `GET /v2/cashier/shift/end` |
 | `shifts` | `GET /v2/cashier/shifts` |
 | `findUser` | `GET /v2/cashier/findUser` |
 | `requestPayment` | `POST /v2/cashier/request-payment` |
@@ -147,7 +147,24 @@ const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
 // Page 2: /v2/cashier/transactions?page=2  (after fetchNextPage())
 ```
 
-The hook reads `data.current_page` and `data.last_page` from the response to determine whether more pages exist.
+The hook reads `lastPage?.data?.current_page` and `lastPage?.data?.last_page` from the response to determine whether more pages exist. Note: the `TransactionHistory` screen uses `useInfiniteQuery` directly (not this hook) and reads `lastPage?.transactions?.current_page` instead.
+
+### useOnScrollMethodTransactions
+
+A variant of `useOnScrollMethod` specifically for the transaction history endpoint. The key difference is that it appends `&page=` (not `?page=`) to the endpoint — used when the endpoint already has query parameters (e.g., `?search=term&page=2`).
+
+```javascript
+import { useOnScrollMethodTransactions } from '~/services/api-hooks/useOnScrollMethodTrans';
+
+const { data, fetchNextPage, hasNextPage } =
+  useOnScrollMethodTransactions({
+    endpoint: `${endpoints.transactions}?search=`,
+    key: endpoints.transactions,
+    config: {},
+  });
+```
+
+It reads `lastPage?.transactions?.current_page` and `lastPage?.transactions?.last_page` to paginate (unlike `useOnScrollMethod` which reads `lastPage?.data`).
 
 ### usePostMethod
 

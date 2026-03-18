@@ -58,13 +58,17 @@ const groupTransactionsByDate = transactions => {
 
 ## Filter tabs
 
-The full history screen has three filter tabs:
+The full history screen has three filter tabs (internal state values in parentheses):
 
-| Tab | Filter logic |
-|---|---|
-| **All** | No filter applied |
-| **Successful** | `Number(item.total) > 0` and `item.status === 'Success'` |
-| **Refunded** | `Number(item.total) < 0` and `item.status === 'Refund'` |
+| Tab label | State value | Filter logic |
+|---|---|---|
+| **All** | `'ALL'` | No filter applied — shows all transactions |
+| **Successful** | `'SUCCESS'` | `Number(item.total) > 0` and `item.status === 'Success'` |
+| **Refunded** | `'FAILED'` | `Number(item.total) < 0` and `item.status === 'Refund'` |
+
+<Note>
+When a search term is active, the flat (ungrouped) list is displayed instead of the date-grouped view.
+</Note>
 
 ## Transaction statuses
 

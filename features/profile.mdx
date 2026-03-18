@@ -25,20 +25,11 @@ The screen supports pull-to-refresh.
   <Card title="Change PIN" icon="grid-2x2">
     Navigate via **Profile → Change Pin**. Enter a new 4-digit PIN (OTP input) and confirm it. Calls `POST /v2/cashier/change-pin` with `{ pin, confirm_pin }`. On success, navigates back to the profile screen.
   </Card>
-  <Card title="Reset PIN" icon="rotate-ccw">
-    A multi-step flow under `RestPin/`. Enter a new 4-digit PIN on `RESET_PIN_INPUT` (calls `POST` to `endpoints.reset_pin` with `{ new_pin }`), then confirm it on `RESET_CONFIRM_PIN`. Successful completion navigates to `RESET_PIN_SUCCESS`.
-  </Card>
   <Card title="My QR code" icon="qr-code">
     Navigate via **Profile → My QR Code**. Displays the cashier's personal QR code (sourced from `user.qrCode`) with the formatted user ID below it. Tap **Download QR** to save the image to the device.
   </Card>
-  <Card title="Preferences" icon="settings">
-    Navigate via the Preferences option (if present in your navigation). Contains three items:
-    - **Update Email** → `UPDATE_EMAIL` screen
-    - **Update Phone Number** → `UPDATE_NUMBER` screen
-    - **Reverification** → `DOCUMENTS` screen with `{ revalidate: true }`
-  </Card>
   <Card title="Logout" icon="log-out">
-    Tap **Logout** in the options list. A confirmation alert appears. On confirmation, `storage.clearData('token')` removes the AsyncStorage token, `setLoggedIn(false)` updates `useAuthStore`, the React Query cache is cleared, and the navigator resets to `MAIN_STACK`.
+    Tap **Logout** in the options list. A confirmation alert appears. On confirmation, `storage.clearData('token')` removes the AsyncStorage token, `setLoggedIn(false)` updates `useAuthStore`, the React Query cache is cleared with `queryClient.clear()`, and the navigator resets to `MAIN_STACK`.
   </Card>
 </CardGroup>
 
@@ -59,14 +50,14 @@ The options rendered at the bottom of the profile screen are defined as a static
 
 ```javascript
 const options = [
-  { icon: <QrOption />,        text: 'My QR Code',       route: MY_QR_CODE },
-  { icon: <ChangePin />,       text: 'Change Pin',        route: CHANGE_PIN },
-  { icon: <ChangePassword />,  text: 'Change Password',   route: CHANGE_PASSWORD },
-  { icon: <Logout />,          text: 'Logout',            logout: true },
+  { icon: <QrOption />,       text: 'My QR Code',      rightIcon: <ArrowRight />, route: MY_QR_CODE },
+  { icon: <ChangePin />,      text: 'Change Pin',       rightIcon: <ArrowRight />, route: CHANGE_PIN },
+  { icon: <ChangePassword />, text: 'Change Password',  rightIcon: <ArrowRight />, route: CHANGE_PASSWORD },
+  { icon: <Logout />,         text: 'Logout',           rightIcon: <ArrowRight />, logout: true },
 ];
 ```
 
-Items with a `route` property navigate to that screen. The item with `logout: true` triggers the logout confirmation modal instead.
+Items with a `route` property navigate to that screen. The item with `logout: true` triggers the logout confirmation modal instead. When navigating to `MY_QR_CODE`, the user's `qrCode` URL and formatted `uuid` are passed as route params.
 
 ## API endpoints
 
