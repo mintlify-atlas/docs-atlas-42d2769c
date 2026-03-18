@@ -1,0 +1,55 @@
+{
+  "projectType": "saas",
+  "projectName": "Doss Cashier App",
+  "projectDescription": "A React Native mobile cashier application for processing payments, managing shifts, and tracking transaction history on the Doss platform.",
+  "theme": "almond",
+  "primaryColor": "#64dcfc",
+  "lightColor": "#448494",
+  "darkColor": "#24252d",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": ["introduction", "getting-started/prerequisites", "getting-started/installation", "getting-started/running-the-app"]
+          },
+          {
+            "group": "Core Features",
+            "pages": ["features/authentication", "features/shift-management", "features/payment-requests", "features/transaction-history", "features/notifications", "features/profile"]
+          },
+          {
+            "group": "Architecture",
+            "pages": ["architecture/overview", "architecture/navigation", "architecture/state-management", "architecture/api-layer", "architecture/theming"]
+          },
+          {
+            "group": "Guides",
+            "pages": ["guides/building-android", "guides/building-ios", "guides/environment-config", "guides/troubleshooting"]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Shift management with live timer (check-in/check-out)",
+    "Payment request flow — find user by ID and request a charge",
+    "Transaction history with refund and cancellation support",
+    "Firebase push notifications via Notifee",
+    "Offline detection with NetInfo and online/offline UI feedback",
+    "Secure token-based auth with AsyncStorage",
+    "Profile management with QR code, PIN, and password settings",
+    "React Query data fetching with pagination and scroll-based loading"
+  ],
+  "publicApiSurface": [
+    "GET /api/ (home dashboard: today's sales, transactions, shift status)",
+    "GET /api/shifts (active shift info and elapsed time)",
+    "GET /api/start-shift (begin a cashier shift)",
+    "GET /api/end-shift (end a cashier shift)",
+    "POST /api/request-payment (create a payment request for a user)",
+    "GET /api/refund/{id} (issue a refund for a transaction)",
+    "GET /api/cancel/{uuid} (cancel an awaiting payment request)",
+    "GET /api/profile (fetch authenticated cashier profile)",
+    "GET /api/transactions (paginated transaction history)"
+  ]
+}
