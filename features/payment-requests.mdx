@@ -1,0 +1,86 @@
+---
+title: "Payment requests"
+description: "How a cashier finds a user, enters an amount, and sends a payment request through the Doss platform."
+---
+
+Payment requests are the core transaction flow in the Doss Cashier App. The cashier searches for a customer by their Doss user ID, enters the amount to charge, and sends the request. The customer receives a notification to approve or decline.
+
+<Warning>
+A shift must be active before a payment request can be initiated. Attempting to tap **Add Payment** without an active shift shows the error "Start shift to request payment" and blocks navigation.
+</Warning>
+
+## Full flow
+
+<Steps>
+  <Step title="Tap Add Payment">
+    On the home screen, tap the green **+ Add Payment** button. The app verifies `shiftStarted` is `true` via `useShiftStatus`, then navigates to the `FIND_USER` screen.
+  </Step>
+  <Step title="Find user by ID">
+    On the `FIND_USER` screen (title: **Find User By USER ID**), type in the search field. The input automatically prepends the `ZG-` prefix and cannot be removed.
+
+    ```javascript
+    // Prefix is enforced
+    if (!t.startsWith('ZG-')) {
+      setTerm('ZG-');
+      return;
+    }
+    ```
+
+    The search term (everything after `ZG-`) is debounced at 300 ms and sent as a query parameter to `GET /v2/cashier/findUser`. Results show the user's avatar, UUID, and first name.
+  </Step>
+  <Step title="Select user">
+    Tap a result row. The `userData` object (containing `id`, `uuid`, `first_name`, `last_name`, `picture`) is passed as a route parameter to the `REQUEST_PAYMENT` screen.
+  </Step>
+  <Step title="Enter amount">
+    The `REQUEST_PAYMENT` screen shows the selected user's avatar and name. Tap the large amount field and type a numeric value.
+
+    The input automatically converts from cents to dollars as you type:
+
+    ```javascript
+    let amt = parseFloat(numb);
+    if (!isNaN(amt)) {
+      amt /= 100;
+      numb = amt.toFixed(2);
+    }
+    ```
+
+    The displayed value is formatted as `$ X.XX` when a non-zero amount is present:
+
+    ```javascript
+    value={Number(a) ? `$ ${Number(a).toFixed(2)}` : a}
+    ```
+  </Step>
+  <Step title="Send request">
+    Tap **Request**. The app calls `POST /v2/cashier/request-payment` with:
+
+    ```json
+    {
+      "user_id": 42,
+      "amount": 9.99
+    }
+    ```
+
+    `user_id` is `userData.id` (the integer primary key) and `amount` is `Number(amount)` (the dollar value after cent-to-dollar conversion).
+  </Step>
+  <Step title="Result screen">
+    On success, the navigator goes to the `REQUESTED` screen, confirming the payment request was sent. On failure, an error toast is shown: _"Fail to request payment, try again later"_.
+  </Step>
+</Steps>
+
+## Amount formatting
+
+The amount field uses a cents-first input model. Every keystroke divides the accumulated integer by 100:
+
+| User types | Parsed integer | Displayed |
+|---|---|---|
+| `5` | 5 | `$ 0.05` |
+| `50` | 50 | `$ 0.50` |
+| `500` | 500 | `$ 5.00` |
+| `1999` | 1999 | `$ 19.99` |
+
+## API endpoints
+
+| Action | Method | Endpoint |
+|---|---|---|
+| Search for user | `GET` | `/v2/cashier/findUser?search=<term>` |
+| Send payment request | `POST` | `/v2/cashier/request-payment` |

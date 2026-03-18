@@ -1,0 +1,165 @@
+---
+title: "Prerequisites"
+description: "Install and configure the tools required to build and run the Doss Cashier App."
+---
+
+Before you can build and run the Doss Cashier App, you need to set up a React Native development environment. The steps below cover all required tools for both Android and iOS targets.
+
+<Info>
+  iOS development requires a Mac. If you are on Windows or Linux, you can only build and run the Android version of the app.
+</Info>
+
+## Required tools
+
+| Tool | Minimum version | Notes |
+|---|---|---|
+| Node.js | 18 | Specified in `package.json` `engines` field |
+| Yarn | 1.x (classic) | Used for all dependency management |
+| JDK | 17 | Required by the Android Gradle build |
+| Android Studio | Latest stable | Includes Android SDK and AVD Manager |
+| Xcode | 14+ | macOS only; required for iOS builds |
+| CocoaPods | >= 1.13, < 1.15 | macOS only; specified in `Gemfile` |
+| Ruby | >= 2.6.10 | macOS only; required to install CocoaPods via Bundler |
+
+## Setup steps
+
+<Steps>
+  <Step title="Install Node.js 18+">
+    Download and install Node.js from [nodejs.org](https://nodejs.org). The project's `package.json` enforces `node >= 18`.
+
+    Verify your installation:
+
+    ```bash
+    node --version
+    # v18.x.x or higher
+    ```
+  </Step>
+
+  <Step title="Install Yarn">
+    ```bash
+    npm install --global yarn
+    yarn --version
+    ```
+  </Step>
+
+  <Step title="Install the JDK">
+    <Tabs>
+      <Tab title="macOS">
+        Install via Homebrew:
+
+        ```bash
+        brew install --cask zulu@17
+        ```
+
+        Or download from [Adoptium](https://adoptium.net).
+      </Tab>
+      <Tab title="Windows / Linux">
+        Download the JDK 17 installer from [Adoptium](https://adoptium.net) and follow the installer instructions. Make sure `JAVA_HOME` is set to the JDK installation directory.
+      </Tab>
+    </Tabs>
+
+    Verify:
+
+    ```bash
+    java -version
+    # openjdk version "17.x.x"
+    ```
+  </Step>
+
+  <Step title="Set up Android Studio">
+    1. Download [Android Studio](https://developer.android.com/studio) and run the installer.
+    2. During setup, ensure the following components are selected:
+       - Android SDK
+       - Android SDK Platform
+       - Android Virtual Device (AVD)
+    3. In **SDK Manager** (Settings → Languages & Frameworks → Android SDK), install **Android SDK Platform 34** and **Android SDK Build-Tools 34.0.0**.
+    4. Set the `ANDROID_HOME` environment variable to your SDK location:
+
+    <Tabs>
+      <Tab title="macOS / Linux">
+        Add the following to your shell profile (`~/.zshrc`, `~/.bashrc`, etc.):
+
+        ```bash
+        export ANDROID_HOME=$HOME/Library/Android/sdk   # macOS default
+        export PATH=$PATH:$ANDROID_HOME/emulator
+        export PATH=$PATH:$ANDROID_HOME/platform-tools
+        ```
+      </Tab>
+      <Tab title="Windows">
+        Open **System Properties → Environment Variables** and add:
+
+        - Variable: `ANDROID_HOME`
+        - Value: `%LOCALAPPDATA%\Android\Sdk`
+
+        Then add `%ANDROID_HOME%\emulator` and `%ANDROID_HOME%\platform-tools` to `PATH`.
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Create an Android Virtual Device (emulator)">
+    In Android Studio, open **Device Manager** and create a new virtual device:
+
+    1. Select a device definition (e.g., **Pixel 6**).
+    2. Choose a system image with **API Level 34**.
+    3. Finish and start the emulator to verify it boots correctly.
+
+    <Tip>
+      You can also run the app on a physical Android device by enabling **USB Debugging** in developer options and connecting it via USB.
+    </Tip>
+  </Step>
+
+  <Step title="Set up Xcode (macOS only)">
+    1. Install Xcode from the [Mac App Store](https://apps.apple.com/us/app/xcode/id497799835).
+    2. Open Xcode and accept the license agreement.
+    3. Install the Xcode Command Line Tools:
+
+    ```bash
+    xcode-select --install
+    ```
+
+    4. Open **Xcode → Settings → Platforms** and ensure the iOS simulator runtime is installed.
+  </Step>
+
+  <Step title="Install CocoaPods (macOS only)">
+    The project's `Gemfile` requires CocoaPods >= 1.13 and < 1.15, and Ruby >= 2.6.10.
+
+    Install using Bundler (recommended, respects the version constraint in `Gemfile`):
+
+    ```bash
+    gem install bundler
+    bundle install
+    ```
+
+    Or install directly:
+
+    ```bash
+    gem install cocoapods -v '~> 1.14'
+    pod --version
+    ```
+
+    <Warning>
+      CocoaPods 1.15 introduced a bug that breaks the React Native iOS build. The `Gemfile` sets an upper bound of `< 1.15` to prevent this.
+    </Warning>
+  </Step>
+</Steps>
+
+## Android SDK requirements summary
+
+| SDK component | Required version |
+|---|---|
+| compileSdkVersion | 34 |
+| targetSdkVersion | 34 |
+| minSdkVersion | 23 |
+| buildToolsVersion | 34.0.0 |
+| NDK | 25.1.8937393 |
+
+## iOS requirements summary
+
+| Requirement | Detail |
+|---|---|
+| Platform | macOS only |
+| Minimum iOS version | As defined by `min_ios_version_supported` in the Podfile |
+| Firebase pods | Configured as static frameworks in `ios/Podfile` |
+| Apple Developer account | Required only for deployment to a physical device or TestFlight |
+
+Once all tools are installed, move on to [Installation](/getting-started/installation).

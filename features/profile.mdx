@@ -1,0 +1,78 @@
+---
+title: "Profile"
+description: "What the profile screen shows and how to access account settings including password, PIN, QR code, and preferences."
+---
+
+The profile screen is the central hub for cashier account management. Open it by tapping your avatar in the top-left corner of the home screen.
+
+## Profile overview
+
+The screen is fetched from `GET /v2/cashier/profile` and displays:
+
+- **Avatar** — tap to upload a new photo from the gallery (`launchImageLibrary`) or take one with the camera (`launchCamera`). The upload calls `POST /v2/cashier/update_image` as a multipart form.
+- **Full name** and the role label **Senior cashier**
+- **User ID** — formatted as `#XXXX` (the `ZG-` prefix is stripped from `user.uuid`)
+- **About section** — country, email, and formatted phone number
+
+The screen supports pull-to-refresh.
+
+## Profile sub-features
+
+<CardGroup cols={2}>
+  <Card title="Change password" icon="lock">
+    Navigate via **Profile → Change Password**. Enter a new password and confirm it (minimum 8 characters, values must match). Calls `POST /v2/cashier/change-password` with `{ password, confirm_password }`. On success, navigates back to the profile screen.
+  </Card>
+  <Card title="Change PIN" icon="grid-2x2">
+    Navigate via **Profile → Change Pin**. Enter a new 4-digit PIN (OTP input) and confirm it. Calls `POST /v2/cashier/change-pin` with `{ pin, confirm_pin }`. On success, navigates back to the profile screen.
+  </Card>
+  <Card title="Reset PIN" icon="rotate-ccw">
+    A multi-step flow under `RestPin/`. Enter a new 4-digit PIN on `RESET_PIN_INPUT` (calls `POST` to `endpoints.reset_pin` with `{ new_pin }`), then confirm it on `RESET_CONFIRM_PIN`. Successful completion navigates to `RESET_PIN_SUCCESS`.
+  </Card>
+  <Card title="My QR code" icon="qr-code">
+    Navigate via **Profile → My QR Code**. Displays the cashier's personal QR code (sourced from `user.qrCode`) with the formatted user ID below it. Tap **Download QR** to save the image to the device.
+  </Card>
+  <Card title="Preferences" icon="settings">
+    Navigate via the Preferences option (if present in your navigation). Contains three items:
+    - **Update Email** → `UPDATE_EMAIL` screen
+    - **Update Phone Number** → `UPDATE_NUMBER` screen
+    - **Reverification** → `DOCUMENTS` screen with `{ revalidate: true }`
+  </Card>
+  <Card title="Logout" icon="log-out">
+    Tap **Logout** in the options list. A confirmation alert appears. On confirmation, `storage.clearData('token')` removes the AsyncStorage token, `setLoggedIn(false)` updates `useAuthStore`, the React Query cache is cleared, and the navigator resets to `MAIN_STACK`.
+  </Card>
+</CardGroup>
+
+## Navigation
+
+The profile screen is reached from the home screen header:
+
+```javascript
+// HomeHeader in src/screens/Home/Home.jsx
+const handleProfile = () => navigate(PROFILE);
+```
+
+The cashier's avatar is displayed in the header. Tapping it calls `handleProfile`, which navigates to the `PROFILE` route.
+
+## Profile options list
+
+The options rendered at the bottom of the profile screen are defined as a static array in `src/screens/Profile/index.jsx`:
+
+```javascript
+const options = [
+  { icon: <QrOption />,        text: 'My QR Code',       route: MY_QR_CODE },
+  { icon: <ChangePin />,       text: 'Change Pin',        route: CHANGE_PIN },
+  { icon: <ChangePassword />,  text: 'Change Password',   route: CHANGE_PASSWORD },
+  { icon: <Logout />,          text: 'Logout',            logout: true },
+];
+```
+
+Items with a `route` property navigate to that screen. The item with `logout: true` triggers the logout confirmation modal instead.
+
+## API endpoints
+
+| Action | Method | Endpoint |
+|---|---|---|
+| Fetch profile | `GET` | `/v2/cashier/profile` |
+| Update avatar | `POST` | `/v2/cashier/update_image` |
+| Change password | `POST` | `/v2/cashier/change-password` |
+| Change PIN | `POST` | `/v2/cashier/change-pin` |

@@ -1,0 +1,139 @@
+---
+title: "Building for iOS"
+description: "Install CocoaPods dependencies, bundle JS assets, and archive the Doss Cashier App for iOS distribution."
+---
+
+<Warning>
+  iOS builds require **macOS**. This process cannot be performed on Windows or Linux.
+</Warning>
+
+## Prerequisites
+
+- **macOS** (Ventura or later recommended)
+- **Xcode** 15 or later (install from the Mac App Store)
+- **CocoaPods** `>= 1.13` and `< 1.15` — the version constraint is enforced in `Gemfile`:
+  ```ruby
+  gem 'cocoapods', '>= 1.13', '< 1.15'
+  ```
+- **Ruby** `>= 2.6.10` (the `Gemfile` specifies this)
+- **Node** `>=18` and Yarn installed
+- An **Apple Developer account** with a valid signing certificate and provisioning profile
+
+<Tip>
+  Use [Bundler](https://bundler.io/) to install the exact CocoaPods version specified in the `Gemfile`:
+  ```bash
+  gem install bundler
+  bundle install
+  ```
+  Then replace bare `pod` calls with `bundle exec pod` to stay on the pinned version.
+</Tip>
+
+## Full build process
+
+<Steps>
+  <Step title="Install JS dependencies">
+    ```bash
+    yarn install
+    ```
+  </Step>
+
+  <Step title="Install CocoaPods dependencies">
+    From the project root:
+
+    ```bash
+    bundle exec pod install --project-directory=ios
+    ```
+
+    Or from inside the `ios/` directory:
+
+    ```bash
+    cd ios && pod install
+    ```
+
+    This reads `ios/Podfile` and installs all native iOS dependencies, including Firebase pods that require modular headers:
+
+    ```ruby
+    pod 'Firebase', :modular_headers => true
+    pod 'FirebaseSessions', :modular_headers => true
+    pod 'FirebaseCore', :modular_headers => true
+    $RNFirebaseAsStaticFramework = true
+    ```
+  </Step>
+
+  <Step title="Bundle JS assets">
+    Run the `build-ios` script from `package.json` to pre-bundle JavaScript before archiving:
+
+    ```bash
+    yarn build-ios
+    ```
+
+    The exact command (from `package.json`) is:
+
+    ```bash
+    npx react-native bundle \
+      --entry-file index.js \
+      --platform ios \
+      --dev false \
+      --bundle-output ios/main.jsbundle
+    ```
+
+    This writes the production JS bundle to `ios/main.jsbundle`.
+  </Step>
+
+  <Step title="Open the Xcode workspace">
+    Always open the **workspace** (`.xcworkspace`), not the project file, after running `pod install`:
+
+    ```bash
+    open ios/CashierApp.xcworkspace
+    ```
+  </Step>
+
+  <Step title="Select the scheme and destination">
+    In Xcode:
+    1. Select the **CashierApp** scheme from the scheme selector.
+    2. Set the destination to **Any iOS Device (arm64)** for an archive build.
+  </Step>
+
+  <Step title="Archive the app">
+    In Xcode, go to **Product → Archive**.
+
+    Wait for the archive to complete; Xcode Organizer opens automatically.
+  </Step>
+
+  <Step title="Export the IPA">
+    In Xcode Organizer:
+    1. Select the archive.
+    2. Click **Distribute App**.
+    3. Choose a distribution method (App Store Connect, Ad Hoc, Enterprise, or Development).
+    4. Follow the wizard to select a provisioning profile and export the `.ipa`.
+  </Step>
+</Steps>
+
+## Running a debug build on a simulator
+
+For local development, Metro serves the bundle directly — no manual bundling needed:
+
+```bash
+# Start Metro bundler
+yarn start
+
+# In a separate terminal, deploy to the iOS simulator
+yarn ios
+```
+
+## Signing and provisioning
+
+The Xcode project target is `CashierApp`. Signing is managed via Xcode's **Signing & Capabilities** tab.
+
+1. Select the `CashierApp` target in Xcode.
+2. Under **Signing & Capabilities → Team**, select your Apple Developer team.
+3. Enable **Automatically manage signing** for development, or manually assign certificates and profiles for distribution.
+4. Ensure the Bundle Identifier in Xcode matches what is registered in App Store Connect.
+
+<Note>
+  The `CashierAppTests` target inherits complete pod configuration from the main target (`inherit! :complete` in the Podfile).
+</Note>
+
+## Firebase / Google Services
+
+The project uses `@react-native-firebase/app` and `@react-native-firebase/messaging`. A `GoogleService-Info.plist` is present at `ios/GoogleService-Info.plist`. Before distributing the app, replace the bundled development plist with your production `GoogleService-Info.plist` and verify it is added to the Xcode project's **Copy Bundle Resources** build phase.

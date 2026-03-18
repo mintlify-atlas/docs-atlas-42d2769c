@@ -1,0 +1,113 @@
+---
+title: "Running the app"
+description: "Start the Metro bundler and launch the Doss Cashier App on Android or iOS."
+---
+
+Running the app requires two things: the Metro JavaScript bundler, and either an Android emulator/device or an iOS simulator/device.
+
+<Warning>
+  You must have a running Android emulator or iOS simulator (or a connected physical device) before running the platform-specific launch command. The command will fail if no target device is available.
+</Warning>
+
+<Steps>
+  <Step title="Start the Metro bundler">
+    Open a terminal in the project root and start Metro:
+
+    <CodeGroup>
+
+    ```bash yarn
+    yarn start
+    ```
+
+    ```bash npm
+    npm start
+    ```
+
+    </CodeGroup>
+
+    This runs `npx react-native start --experimental-debugger`. Keep this terminal open — Metro must stay running while the app is active.
+
+    <Note>
+      The `--experimental-debugger` flag enables the new React Native debugger interface. See [Debugging](#debugging) below for more details.
+    </Note>
+  </Step>
+
+  <Step title="Launch the app on your target platform">
+    Open a **second terminal** in the project root and run the appropriate command for your platform:
+
+    <Tabs>
+      <Tab title="Android">
+        <CodeGroup>
+
+        ```bash yarn
+        yarn android
+        ```
+
+        ```bash npm
+        npm run android
+        ```
+
+        </CodeGroup>
+
+        This runs `react-native run-android`, which compiles the Android project with Gradle (targeting SDK 34, minimum SDK 23) and installs the debug APK on the running emulator or connected device.
+
+        <Tip>
+          You can also open the `android/` folder in Android Studio and click **Run** from there.
+        </Tip>
+      </Tab>
+      <Tab title="iOS">
+        <CodeGroup>
+
+        ```bash yarn
+        yarn ios
+        ```
+
+        ```bash npm
+        npm run ios
+        ```
+
+        </CodeGroup>
+
+        This runs `react-native run-ios`, which builds the Xcode workspace (`ios/CashierApp.xcworkspace`) and launches the app in the iOS simulator.
+
+        <Tip>
+          You can also open `ios/CashierApp.xcworkspace` in Xcode and click **Run**.
+        </Tip>
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>
+
+## Hot reload
+
+After the app launches, you can edit source files and reload without a full rebuild:
+
+<Tabs>
+  <Tab title="Android">
+    - Press **R** twice on your keyboard while the emulator is focused, or
+    - Open the developer menu with **Ctrl+M** (Windows/Linux) or **Cmd+M** (macOS), then select **Reload**.
+  </Tab>
+  <Tab title="iOS">
+    - Press **Cmd+R** in the iOS simulator to reload the app.
+  </Tab>
+</Tabs>
+
+## Debugging
+
+The `yarn start` command passes the `--experimental-debugger` flag to Metro, which enables the new React Native DevTools debugger. When Metro is running with this flag, you can open the debugger by:
+
+1. Pressing **J** in the Metro terminal to open the JavaScript debugger, or
+2. Opening the in-app developer menu and selecting **Open Debugger**.
+
+<Note>
+  The experimental debugger is the recommended debugging interface for React Native 0.73+. The legacy Chrome DevTools remote debugger is available as a fallback but is not the default for this project.
+</Note>
+
+## Troubleshooting
+
+| Problem | Likely cause | Fix |
+|---|---|---|
+| `No devices found` | No emulator running | Start an AVD from Android Studio Device Manager or launch the iOS simulator from Xcode |
+| `Metro already running` | A previous Metro process is still alive | Press `Ctrl+C` in the existing Metro terminal, then restart |
+| iOS build fails after `yarn install` | CocoaPods out of sync | Run `cd ios && pod install` to re-sync native dependencies |
+| Android build fails with SDK error | SDK version mismatch | Verify Android SDK Platform 34 and Build-Tools 34.0.0 are installed in Android Studio SDK Manager |

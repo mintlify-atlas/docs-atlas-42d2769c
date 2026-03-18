@@ -1,97 +1,61 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Doss Cashier App"
+description: "A React Native mobile cashier application for processing payments, managing shifts, and tracking transactions on the Doss platform."
 ---
 
-## Setting up
-
-Get your documentation site up and running in minutes.
-
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Get started" icon="rocket" href="/getting-started/prerequisites">
+    Set up your environment and run the app in minutes.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Shift management" icon="clock" href="/features/shift-management">
+    Check in and out of shifts with a live timer.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Payment requests" icon="credit-card" href="/features/payment-requests">
+    Find customers and send payment requests instantly.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Transaction history" icon="list" href="/features/transaction-history">
+    View, refund, and cancel transactions in real time.
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## What is Doss Cashier App?
 
-Everything you need to create world-class documentation.
+Doss Cashier App is a React Native mobile application for cashiers working on the Doss platform. It provides everything a cashier needs to:
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+- **Start and end shifts** — clock in and out with a live timer displayed on the home screen
+- **Request payments** — search for customers by ID and send payment requests for exact amounts
+- **Monitor transactions** — view real-time transaction status with success, refund, and cancel counts
+- **Manage history** — browse paginated transaction history grouped by date, with the ability to refund or cancel
+- **Receive notifications** — get foreground and background push alerts via Firebase and Notifee
+- **Work offline** — the app detects connectivity changes and queues retries automatically
 
-## Need inspiration?
+The app communicates with the Doss backend at `https://dossapp.com/api/` using Bearer token authentication and React Query for data fetching and caching.
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+## Key capabilities
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="lock" href="/features/authentication">
+    Secure login with PIN, forgot-password flow, and token persistence via AsyncStorage.
+  </Card>
+  <Card title="Notifications" icon="bell" href="/features/notifications">
+    Firebase Cloud Messaging with Notifee for rich foreground and background alerts.
+  </Card>
+  <Card title="Architecture" icon="sitemap" href="/architecture/overview">
+    Learn how navigation, state, API hooks, and theming fit together.
+  </Card>
+  <Card title="Build guides" icon="hammer" href="/guides/building-android">
+    Step-by-step instructions for producing Android and iOS release builds.
+  </Card>
+</CardGroup>
+
+## Supported platforms
+
+| Platform | Minimum version |
+|----------|----------------|
+| Android  | API 21 (Android 5.0) |
+| iOS      | iOS 13.0 |
+| Node.js  | 18 or higher |
+
+<Note>
+  The Doss Cashier App is a private mobile application connected to the Doss backend. You need valid cashier credentials to log in.
+</Note>

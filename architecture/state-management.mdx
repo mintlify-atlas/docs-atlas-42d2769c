@@ -1,0 +1,168 @@
+---
+title: "State management"
+description: "Two-layer state model: React Query for server state and Zustand for client/UI state, with AsyncStorage for persistence."
+---
+
+The app uses two complementary state layers:
+
+- **React Query** — all data that originates from the server (fetched, cached, invalidated)
+- **Zustand** — lightweight global client state that needs to survive re-renders or be shared across the tree
+
+For persistence between app launches, both layers use a thin `storage` wrapper around `AsyncStorage`.
+
+## React Query setup
+
+A single `QueryClient` is created in `App.jsx` at module scope (outside the component) so it is never re-created on re-render:
+
+```javascript
+// App.jsx
+import {
+  MutationCache,
+  QueryCache,
+  QueryClient,
+  QueryClientProvider,
+} from '@tanstack/react-query';
+
+const mutationCache = new MutationCache({
+  onError: error => console.log('mutationCache', error),
+});
+
+const queryCache = new QueryCache({
+  onError: e => console.log('mutationCache', e),
+});
+
+const client = new QueryClient({
+  mutationCache,
+  queryCache,
+  defaultOptions: {
+    queries:   { retry: 0 },
+    mutations: { retry: 0 },
+  },
+});
+```
+
+Key decisions:
+
+- `retry: 0` on both queries and mutations — failed requests surface errors immediately rather than retrying automatically.
+- `MutationCache.onError` and `QueryCache.onError` are global error handlers. Extend these to add Sentry reporting or show a global error toast.
+- `refetchOnWindowFocus: false` is set per-hook in all `useGetMethod` calls.
+
+## Zustand stores
+
+### useAuthStore
+
+Location: `src/store/StateManager/useAuthStore.js`
+
+```javascript
+import { create } from 'zustand';
+
+export const useAuthStore = create(set => ({
+  loggedIn: false,
+  setLoggedIn: loggedIn => set({ loggedIn }),
+  user: {},
+  setUser: userInfo => set({ user: userInfo }),
+}));
+```
+
+| Field | Type | Purpose |
+|---|---|---|
+| `loggedIn` | `boolean` | Guards the navigator — switches between `AuthStack` and `UnAuthStack` |
+| `setLoggedIn` | `(boolean) => void` | Called on startup after the token is read from storage, and on logout |
+| `user` | `object` | The profile object returned by `GET /v2/cashier/profile` |
+| `setUser` | `(object) => void` | Called in `Root.jsx` when the profile query resolves |
+
+### useWallet
+
+Location: `src/store/StateManager/useWallert.js`
+
+```javascript
+import { create } from 'zustand';
+
+export const useWallet = create(set => ({
+  wallet: {},
+  setWallet: wallet => set({ wallet }),
+}));
+```
+
+Stores wallet data returned from the home endpoint. Use `setWallet` after fetching home data to make the wallet balance available throughout the app without prop drilling.
+
+## Token loading on startup
+
+`Root.jsx` reads the stored token from `AsyncStorage` on mount, sets `loggedIn` in Zustand, and then conditionally fetches the user profile:
+
+```javascript
+// Root.jsx (simplified)
+const { setLoggedIn, loggedIn, setUser } = useAuthStore();
+
+// 1. Load token from storage
+useEffect(() => {
+  const init = async () => {
+    const token = await storage.getData('token');
+    setLoggedIn(!!token);       // flips the navigator
+  };
+  init();
+}, []);
+
+// 2. Fetch profile once logged in
+const { data } = useGetMethod({
+  endpoint: endpoints.profile,
+  key: endpoints.profile,
+  config: { enabled: !!loggedIn },
+});
+
+// 3. Store user in Zustand
+useEffect(() => {
+  if (data?.response) setUser(data.response);
+}, [data, setUser]);
+```
+
+The Axios interceptor in `src/services/api-config/axios.js` reads the token from `AsyncStorage` on every request, so there is no need to manually inject it when calling hooks.
+
+## AsyncStorage helper
+
+Location: `src/store/LocalStorage/storage.js`
+
+All raw `AsyncStorage` calls are wrapped in the `storage` object:
+
+```javascript
+import storage from '~/store/LocalStorage/storage';
+
+// Read a value
+const token = await storage.getData('token');       // JSON.parse(AsyncStorage.getItem(key))
+
+// Write a value
+await storage.setData('token', accessToken);        // JSON.stringify then AsyncStorage.setItem
+
+// Delete a value
+await storage.clearData('token');                   // AsyncStorage.removeItem(key)
+
+// Merge an object into an existing stored object
+await storage.setObjectData('settings', { theme: 'dark' });
+```
+
+| Method | Signature | Description |
+|---|---|---|
+| `getData` | `(key) => Promise<any>` | Parses and returns the stored JSON value |
+| `setData` | `(key, value) => Promise<void>` | Serializes value and stores it |
+| `clearData` | `(key) => Promise<void>` | Removes the key from storage |
+| `setObjectData` | `(key, newObject) => Promise<void>` | Deep-merges a partial object into the stored value |
+| `setUserBookingData` | `(key, newData) => Promise<void>` | Merges nested booking data by `userId` and `eventId` |
+| `removeUserBookingData` | `(key, userId) => Promise<void>` | Removes all booking data for a user |
+| `removeUserBookingEventsData` | `(key, userId, eventId) => Promise<void>` | Removes a single event from a user's booking data |
+
+## Reading and writing state
+
+```javascript
+import { useAuthStore } from '~/store/StateManager/useAuthStore';
+import { useWallet }    from '~/store/StateManager/useWallert';
+
+// Inside a component
+const { user, setLoggedIn } = useAuthStore();
+const { wallet, setWallet } = useWallet();
+
+// Logout example
+const logout = async () => {
+  await storage.clearData('token');
+  setLoggedIn(false);   // triggers navigator switch to UnAuthStack
+};
+```

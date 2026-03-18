@@ -1,0 +1,269 @@
+---
+title: "Theming"
+description: "Color palette, Poppins typography system, spacing utilities, core UI primitives, screen options, and toast configuration."
+---
+
+All design tokens and utility styles live in `src/themes/`. Import everything through the barrel export at `~/themes`.
+
+## Importing tokens
+
+```javascript
+// Named color exports
+import { colors } from '~/themes';
+
+// Combined utility stylesheet (flex + margin + padding + commonStyle + gap)
+import { styles } from '~/themes';
+
+// Individual modules
+import typography   from '~/themes/typography';
+import flex        from '~/themes/flex';
+import margin      from '~/themes/margin';
+import padding     from '~/themes/padding';
+import gap         from '~/themes/gap';
+import commonStyle from '~/themes/commonStyle';
+```
+
+## Color palette
+
+All colors are exported from `src/themes/colors.js` as the `colors` object.
+
+| Token | Hex / Value | Usage |
+|---|---|---|
+| `white` | `#FFFFFF` | Backgrounds, button labels |
+| `black` | `#121212` | Default text color |
+| `primary` | `#29DA3B` | Primary action buttons, active states |
+| `lightGreen` | `#C8FACD` | Light green accent |
+| `lightGreenBG` | `#E2FFE9` | Green background tint |
+| `lightGreenRGBBorder` | `rgba(0, 171, 85, 0.12)` | Subtle green borders |
+| `chatReceive` | `#F4F6F8` | Received message bubbles |
+| `lightGray` | `#637381` | Secondary text |
+| `blue` | `#36F` | Links, info states |
+| `darkB` | `#1339FF` | Dark blue accent |
+| `orange` | `#FF5630` | Warning/error states |
+| `border` | `rgba(145, 158, 171, 0.12)` | Input and card borders |
+| `grayRGB` | `rgba(145, 158, 171, 0.16)` | Subtle gray fills |
+| `redRGB` | `rgba(255, 86, 48, 0.12)` | Error background tint |
+| `greenRGB` | `rgba(41, 218, 59, 0.12)` | Success background tint |
+| `primaryLightShade` | `#E7F0FF` | Primary color light tint |
+| `backgroundColor` | `#F6F8FB` | App/screen background |
+| `placeholder` | `#919EAB` | Input placeholder text |
+| `darkBlue` | `#212B36` | Dark text variant |
+| `darkGray` | `#637381` | Secondary/muted text |
+| `inputBorder` | `#A5A5A5` | Input border (neutral) |
+| `green` | `#1DBF73` | Success/positive values |
+| `greenLightShade` | `#E0F2ED` | Success background |
+| `red` | `#F73F47` | Errors, destructive actions |
+| `redLightShade` | `#FEECED` | Error background |
+| `skyBlue` | `#1ABCFE` | Highlight/info |
+| `yellow` | `#FFAB00` | Pending/warning states |
+| `splash` | `#FEEF90` | Splash screen accent |
+| `darkGreen` | `#005249` | Deep green for overlays |
+
+```javascript
+import { colors } from '~/themes';
+
+<Box backgroundColor={colors.backgroundColor}>
+  <Text type="R14" color={colors.darkGray}>Secondary label</Text>
+  <Button text="Pay" style={{ backgroundColor: colors.primary }} />
+</Box>
+```
+
+## Typography system
+
+Location: `src/themes/typography.js`
+
+The app uses **Poppins** exclusively. Font weights and sizes are defined as separate objects and combined in `typography`.
+
+### Font weights
+
+| Key | Font family | Weight |
+|---|---|---|
+| `Regular` | `Poppins-Regular` | 400 |
+| `Medium` | `Poppins-Medium` | 500 |
+| `SemiBold` | `Poppins-SemiBold` | 600 |
+| `Bold` | `Poppins-Bold` | 700 |
+| `ExtraBold` | `Poppins-ExtraBold` | 800 |
+
+### Font sizes
+
+All sizes are passed through `moderateScale()` for responsive scaling.
+
+`f6`, `f10`, `f11`, `f12`, `f13`, `f14`, `f15`, `f16`, `f18`, `f20`, `f22`, `f24`, `f26`, `f28`, `f30`, `f32`, `f34`, `f35`, `f36`, `f40`, `f46`, `f48`, `f66`
+
+### Using the Text component
+
+The `Text` core component accepts a `type` prop that combines weight and size into a single string: the first character is the weight initial (`R`, `M`, `S`, `B`) and the rest is the numeric font size.
+
+```javascript
+import { Text } from '~/components/core';
+
+<Text type="R14">Regular 14px</Text>
+<Text type="M16">Medium 16px</Text>
+<Text type="S18">SemiBold 18px</Text>
+<Text type="B24">Bold 24px</Text>
+<Text type="R12" color={colors.darkGray} align="center">
+  Centered secondary label
+</Text>
+```
+
+## Spacing utilities
+
+All utilities are `StyleSheet.create` objects so they benefit from native optimization. Use them by spreading into a style array or via the combined `styles` export.
+
+### flex
+
+Common flexbox arrangements. Key entries:
+
+| Key | Style |
+|---|---|
+| `flex` | `{ flex: 1 }` |
+| `center` | `{ alignItems: 'center', justifyContent: 'center' }` |
+| `rowCenter` | `{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }` |
+| `rowSpaceBetween` | `{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }` |
+| `fullWidth` | `{ width: '100%' }` |
+| `selfCenter` | `{ alignSelf: 'center' }` |
+
+### margin
+
+Shorthand margin tokens using `moderateScale` and `getHeight`. Naming convention:
+
+- `m{n}` — `margin`
+- `mt{n}` — `marginTop`
+- `mb{n}` — `marginBottom`
+- `ml{n}` / `mr{n}` — `marginLeft` / `marginRight`
+- `mh{n}` — `marginHorizontal`
+- `mv{n}` — `marginVertical`
+
+Available steps: 0, 2, 5, 8, 10, 15, 20, 25, 30, 35, 40, 50, 55, 100, 150.
+
+### padding
+
+Same naming convention as margin but for padding:
+
+- `p{n}`, `pt{n}`, `pb{n}`, `pl{n}`, `pr{n}`, `ph{n}`, `pv{n}`
+
+Available steps: 0, 5, 10, 15, 20, 25, 30, 35, 40, 50, 60, 90.
+
+### gap
+
+React Native `gap` property tokens: `g0`, `g5`, `g10`, `g15`, `g20`, `g25`, `g30`, `g35`, `g40`.
+
+### commonStyle
+
+Reusable compound styles:
+
+| Key | Description |
+|---|---|
+| `mainContainer` | `backgroundColor: colors.backgroundColor`, `flex: 1` — standard screen root |
+| `innerContainer` | `paddingHorizontal: 20`, `marginTop: 20` — standard content area |
+| `shadowStyle` | Light card shadow (cross-platform) |
+| `btnShadowStyle` | Primary-colored button shadow |
+| `shadowBox` | Medium shadow for cards |
+| `darkShadow` | Heavy shadow for modals/overlays |
+| `shadow` | Standard component shadow |
+| `underLineText` | `textDecorationLine: 'underline'` |
+| `capitalizeTextStyle` | `textTransform: 'capitalize'` |
+| `gradientStyle` | Absolute full-bleed gradient overlay |
+| `textShadow` | Text drop shadow |
+
+## Core UI components
+
+Location: `src/components/core/`
+
+All primitives accept style props directly (spread onto the underlying native component) rather than requiring a `style` object. Import from the barrel:
+
+```javascript
+import {
+  Box, HStack, VStack, Stack, Center, FlexCenter,
+  Text, Button, OutlineButton,
+  Input, OTPInput,
+  Image, FlatList, ScrollView,
+  Pressable, Loader, DashDivider,
+} from '~/components/core';
+```
+
+| Component | Underlying element | Notes |
+|---|---|---|
+| `Box` | `View` | Accepts any `ViewStyle` prop directly |
+| `HStack` | `View` | Pre-applies `rowCenter` flex (row + center-aligned) |
+| `VStack` | `View` | Pre-applies `flex: 1` |
+| `Stack` | `View` | Plain `View` wrapper |
+| `Center` | `View` | Center-aligned container |
+| `FlexCenter` | `View` | Full-flex centered container |
+| `Text` | `Text` | `type` prop encodes weight+size (e.g. `"S18"`) |
+| `Button` | `Pressable` | Green pill button; `isLoading` shows `ActivityIndicator` |
+| `OutlineButton` | `Pressable` | Outlined variant |
+| `Input` | `TextInput` | Floating label, error state, password toggle |
+| `OTPInput` | — | PIN/OTP digit entry |
+| `Image` | `Image` | Thin wrapper for consistent sizing |
+| `FlatList` | `FlatList` | Pass-through with typed props |
+| `ScrollView` | `ScrollView` | Pass-through wrapper |
+| `Pressable` | `TouchableOpacity` | Default opacity feedback |
+| `Loader` | `ActivityIndicator` | Full-screen loading indicator |
+| `DashDivider` | `View` | Dashed horizontal rule |
+
+## ScreenWrapper
+
+Location: `src/components/common/ScreenWrapper.tsx`
+
+`ScreenWrapper` is the standard screen shell. It renders a `VStack` with status bar padding, an optional header row (title + back button), and a padded `Stack` for content.
+
+```javascript
+import ScreenWrapper from '~/components/common/ScreenWrapper';
+
+<ScreenWrapper title="Transaction History">
+  {/* screen content */}
+</ScreenWrapper>
+
+// No header
+<ScreenWrapper noBack>
+  {/* full-bleed content */}
+</ScreenWrapper>
+```
+
+## Screen options
+
+Location: `src/themes/screenOptions.js`
+
+```javascript
+import isIOS from '~/utils/DimensionsUtils/dimensionsUtils';
+
+export const screenOptions = {
+  headerShown: false,
+  gestureEnabled: true,
+  animation: isIOS ? 'default' : 'none',
+};
+```
+
+Applied to every stack navigator in `Root.jsx`. Headers are suppressed globally; screens implement their own header via `ScreenWrapper`.
+
+## Toast configuration
+
+Location: `src/themes/toastStyle.js`
+
+Custom dark-themed toast styles are defined for the `success` and `error` types:
+
+- Background: `#1B1B1E`
+- Success accent border: `#0850F2`
+- Error accent border: `red`
+- Both use white text at weight 500 (title) and 400 (body)
+
+```javascript
+import Toast from 'react-native-toast-message';
+
+// Show a success toast
+Toast.show({
+  type: 'success',
+  text1: 'Payment sent',
+  text2: 'Your transaction was successful.',
+});
+
+// Show an error toast
+Toast.show({
+  type: 'error',
+  text1: 'Error',
+  text2: 'Check your internet connection',
+});
+```
+
+The `<Toast config={toastConfig} position="bottom" onPress={() => Toast.hide()} />` component is mounted once in `App.jsx` and displays above all other content.

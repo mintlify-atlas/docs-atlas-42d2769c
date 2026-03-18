@@ -1,0 +1,135 @@
+---
+title: "Notifications"
+description: "How the Doss Cashier App receives and displays push notifications using Firebase Cloud Messaging and Notifee."
+---
+
+The app uses **Firebase Cloud Messaging (FCM)** via `@react-native-firebase/messaging` to receive push notifications and **Notifee** (`@notifee/react-native`) to display them with platform-native styling.
+
+## Architecture
+
+Two handlers cover the full notification lifecycle:
+
+| Handler | File | When it runs |
+|---|---|---|
+| `useForegroundNotifications` | `src/services/notifcation/useForegroundNotifications.js` | App is open and in the foreground |
+| `backgroudnNotification` | `src/services/notifcation/backgroundNotifications.js` | App is backgrounded or terminated |
+
+## Permission request
+
+Permission is requested inside `useForegroundNotifications` as soon as the hook mounts:
+
+<Tabs>
+  <Tab title="iOS">
+    ```javascript
+    const authStatus = await messaging().requestPermission();
+    const enabled =
+      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+      authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+
+    if (!enabled) {
+      Alert.alert('Please allow notification permissions for settings');
+    }
+    ```
+  </Tab>
+  <Tab title="Android">
+    ```javascript
+    const granted = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+    );
+
+    if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+      Alert.alert(
+        'Notification Permission Required',
+        'Please allow notification permissions in settings',
+        [{ text: 'OK', onPress: () => Linking.openSettings() }],
+      );
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## FCM token registration
+
+The FCM device token is fetched and stored in AsyncStorage under the key `fcm_token` by `getAndStoreFCM()`:
+
+```javascript
+export const getAndStoreFCM = async () => {
+  const token = await messaging().getToken();
+  await storage.setData('fcm_token', token);
+  return token;
+};
+```
+
+This token is sent to the server on every login as `fcm_last_login_device_token`, so the platform always has the latest token for the device.
+
+## Foreground notifications
+
+When a message arrives while the app is in the foreground, `messaging().onMessage()` fires. The handler:
+
+1. Creates a Notifee channel (`id: 'default'`, `importance: HIGH`) on Android.
+2. Parses `message.data.payment_data` (a JSON string) to extract `status` and `txn_id`.
+3. Routes payment status messages directly to a result screen instead of displaying a banner:
+
+```javascript
+switch (status) {
+  case 'success':
+    return await navigateRoute(
+      txn_id ? REQ_PAYMENT_SUCCESS : SUCCESS,
+      { paymentData },
+    );
+  case 'failed':
+    return await navigateRoute(
+      txn_id ? REQ_PAYMENT_FAILED : ERROR,
+      { paymentData },
+    );
+}
+// All other notification types are displayed as banners:
+await notifee.displayNotification(notification);
+```
+
+## Background notifications
+
+The background handler (`messaging().setBackgroundMessageHandler`) follows the same logic: it displays a Notifee notification and calls `handleNotificationAction` to navigate to the correct result screen when the app is opened.
+
+Tapping a background notification (Notifee `onBackgroundEvent`, type `1`) deep-links to `cashier://Notifications` and cancels the notification.
+
+## Notification types
+
+| `payment_data.status` | `txn_id` present | Navigates to |
+|---|---|---|
+| `success` | yes | `REQ_PAYMENT_SUCCESS` |
+| `success` | no | `SUCCESS` |
+| `failed` | yes | `REQ_PAYMENT_FAILED` |
+| `failed` | no | `ERROR` |
+| other / absent | — | Displayed as Notifee banner |
+
+## In-app notification list
+
+The `DOSS_NOTIFICATIONS` screen (accessible from the bell icon in the home header) loads paginated notifications from `GET /v2/cashier/cashier_notification` using `useOnScrollMethod`. Each item shows:
+
+- Notification message (`notification_messages`)
+- Date formatted as `DD MMM YYYY`
+- Unread state (grey background for unread items)
+
+Tapping a notification calls `GET /v2/readcashier_notification/{id}` to mark it as read, then refreshes the list.
+
+## Enabling notifications (setup steps)
+
+<Steps>
+  <Step title="Grant permission">
+    On first launch, the app requests notification permission automatically. On iOS, a system dialog appears. On Android 13+, a runtime permission dialog is shown. If declined, open **Settings → Apps → Doss Cashier → Notifications** and enable them manually.
+  </Step>
+  <Step title="Verify FCM token is stored">
+    After granting permission, `getAndStoreFCM()` runs and stores the FCM token in AsyncStorage. The token is sent to the server on the next login so the platform can deliver notifications to this device.
+  </Step>
+  <Step title="Test a notification">
+    Request a payment from another device or trigger a test notification from the platform dashboard. Payment result notifications (`success` / `failed`) navigate directly to the result screen; all other notifications appear as banners.
+  </Step>
+</Steps>
+
+## API endpoints
+
+| Action | Method | Endpoint |
+|---|---|---|
+| Fetch notifications | `GET` | `/v2/cashier/cashier_notification` |
+| Mark notification as read | `GET` | `/v2/readcashier_notification/{id}` |

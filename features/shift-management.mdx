@@ -1,0 +1,84 @@
+---
+title: "Shift management"
+description: "How cashiers check in to start a shift, track elapsed time, and check out at the end of a session."
+---
+
+A **shift** represents an active cashier session. Only cashiers with an active shift can request payments. The home screen header displays the current shift status and a live elapsed-time timer.
+
+## How shifts work
+
+Shift state is stored in a local Zustand store (`useShiftStatus`) defined directly in `Home.jsx`:
+
+```javascript
+const useShiftStatus = create(set => ({
+  shiftStarted: false,
+  setShiftStarted: state => set({ shiftStarted: state }),
+}));
+```
+
+On every focus event, the home screen calls `GET /v2/cashier/shifts` to hydrate `data.active_shift` and `data.started_ago`, then syncs `shiftStarted` accordingly.
+
+## Starting a shift (check in)
+
+<Steps>
+  <Step title="Locate the timer control">
+    In the home screen header, next to **Cashier Check In**, tap the timer icon (shown as `TimmerOff` when no shift is active).
+  </Step>
+  <Step title="API call">
+    The app calls `GET /v2/cashier/shift/start`. While the request is in flight, `shiftStarted` is set to `true` optimistically and a loading indicator is shown.
+  </Step>
+  <Step title="Timer starts">
+    On success, the local timer resets to `00:00:00` and begins incrementing every second. The header label changes to **Cashier Check Out** and the `TimmerOn` icon replaces `TimmerOff`.
+  </Step>
+</Steps>
+
+## Ending a shift (check out)
+
+<Steps>
+  <Step title="Tap the active timer icon">
+    While a shift is running, the `TimmerOn` icon is displayed in the header. Tap it to end the shift.
+  </Step>
+  <Step title="API call">
+    The app calls `GET /v2/cashier/shift/end`. `shiftStarted` is set to `false` immediately.
+  </Step>
+  <Step title="Timer stops">
+    On success, the timer resets to `00:00:00` and the header reverts to **Cashier Check In**.
+  </Step>
+</Steps>
+
+## Live timer
+
+The elapsed time is seeded from `data.started_ago` returned by `GET /v2/cashier/shifts`. The value is a string in the format `"H hours M minutes S seconds"`. The app parses this string into hours, minutes, and seconds, then increments the counter every second via `setInterval`:
+
+```javascript
+const timeParts = currentTime.split(' ');
+let hours   = parseInt(timeParts[0], 10) || 0;
+let minutes = parseInt(timeParts[2], 10) || 0;
+let seconds = parseInt(timeParts[4], 10) || 0;
+```
+
+The displayed value uses zero-padded `HH:MM:SS` format:
+
+```javascript
+const updatedTime = `${
+  hours < 10 ? '0' + hours : hours
+}:${
+  minutes < 10 ? '0' + minutes : minutes
+}:${
+  seconds < 10 ? '0' + seconds : seconds
+}`;
+```
+
+The interval is debounced at 500 ms and cleared when the screen loses focus.
+
+## API endpoints
+
+| Action | Method | Endpoint |
+|---|---|---|
+| Fetch shift status | `GET` | `/v2/cashier/shifts` |
+| Start shift | `GET` | `/v2/cashier/shift/start` |
+| End shift | `GET` | `/v2/cashier/shift/end` |
+
+<Warning>
+Cashiers cannot request payments unless a shift is active. Tapping **Add Payment** while `shiftStarted` is `false` shows an error toast: _"Start shift to request payment"_ and navigation to the Find User screen is blocked.
+</Warning>

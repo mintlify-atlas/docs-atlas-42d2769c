@@ -1,0 +1,81 @@
+---
+title: "Installation"
+description: "Clone the repository and install all JavaScript and native dependencies."
+---
+
+Follow these steps to get the Doss Cashier App source code onto your machine and install all dependencies.
+
+<Info>
+  Make sure you have completed the [Prerequisites](/getting-started/prerequisites) before proceeding.
+</Info>
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone <repository-url>
+    cd CashierApp
+    ```
+
+    <Note>
+      Replace `<repository-url>` with the URL provided by your team. Contact your Doss platform administrator if you do not have access to the repository.
+    </Note>
+  </Step>
+
+  <Step title="Install JavaScript dependencies">
+    From the project root, run:
+
+    <CodeGroup>
+
+    ```bash yarn
+    yarn install
+    ```
+
+    ```bash npm
+    npm install
+    ```
+
+    </CodeGroup>
+
+    This installs all packages listed in `package.json`, including React Native, React Query, Zustand, Axios, Firebase, Notifee, and React Navigation.
+  </Step>
+
+  <Step title="Install iOS native dependencies (macOS only)">
+    CocoaPods must resolve all native iOS pod dependencies before you can build for iOS.
+
+    ```bash
+    cd ios
+    pod install
+    cd ..
+    ```
+
+    This reads `ios/Podfile` and installs all required pods, including Firebase and its modular headers. The resolved versions are written to `ios/Podfile.lock`.
+
+    <Warning>
+      Always run `pod install` after adding or updating JavaScript packages that include native modules. Failing to do so will cause iOS build errors.
+    </Warning>
+  </Step>
+
+  <Step title="Configure backend credentials">
+    The app connects to the Doss backend API. You will need valid Doss credentials (username and password for a cashier account) to log in once the app is running.
+
+    <Note>
+      Environment configuration (API base URL and any required keys) is managed through the Doss backend team. Contact your platform administrator to obtain the correct configuration for your environment (development, staging, or production).
+    </Note>
+  </Step>
+</Steps>
+
+## Available scripts
+
+The following scripts are defined in `package.json`:
+
+| Script | Command | Description |
+|---|---|---|
+| `start` | `yarn start` | Start the Metro bundler with `--experimental-debugger` |
+| `android` | `yarn android` | Build and run on a connected Android device or emulator |
+| `ios` | `yarn ios` | Build and run in the iOS simulator |
+| `lint` | `yarn lint` | Run ESLint across the project |
+| `test` | `yarn test` | Run the Jest test suite |
+| `build-android` | `yarn build-android` | Bundle and assemble a release APK |
+| `build-ios` | `yarn build-ios` | Bundle the iOS JavaScript for release |
+
+Once installation is complete, proceed to [Running the app](/getting-started/running-the-app).

@@ -1,0 +1,171 @@
+---
+title: "Troubleshooting"
+description: "Solutions for common issues encountered when developing and building the Doss Cashier App."
+---
+
+<AccordionGroup>
+
+  <Accordion title="Metro bundler errors or stale cache">
+    Metro caches transformed modules locally. A stale cache can cause mysterious module-not-found errors or outdated code being served.
+
+    **Fix:** Reset the Metro cache:
+
+    ```bash
+    yarn start --reset-cache
+    ```
+
+    If the issue persists, clear the Watchman state as well:
+
+    ```bash
+    watchman watch-del-all
+    yarn start --reset-cache
+    ```
+  </Accordion>
+
+  <Accordion title="Android build failures (Gradle sync or compile errors)">
+    **Gradle sync issues** are often caused by stale build artifacts or dependency version conflicts.
+
+    **Fix:** Clean the Gradle build output and rebuild:
+
+    ```bash
+    cd android && ./gradlew clean && cd ..
+    yarn build-android
+    ```
+
+    Additional steps to try:
+    - In Android Studio: **File → Sync Project with Gradle Files**
+    - Delete the Gradle cache: `rm -rf ~/.gradle/caches/`
+    - Ensure the SDK versions match the values in `android/build.gradle`:
+      - `compileSdkVersion 34`
+      - `targetSdkVersion 34`
+      - `minSdkVersion 23`
+      - `buildToolsVersion "34.0.0"`
+
+    <Note>
+      If you see `AAPT: error: file failed to compile` for drawable resources, ensure the `rm -rf android/app/src/main/res/drawable-*` step in the `build-android` script ran successfully before calling Gradle.
+    </Note>
+  </Accordion>
+
+  <Accordion title="iOS build failures (CocoaPods or Xcode errors)">
+    iOS build errors frequently stem from outdated pod lockfiles or Xcode derived data.
+
+    **Fix 1:** Re-run pod install:
+
+    ```bash
+    cd ios && pod install
+    ```
+
+    If CocoaPods reports version conflicts, install using Bundler to match the exact pinned version (`>= 1.13`, `< 1.15`):
+
+    ```bash
+    bundle exec pod install --project-directory=ios
+    ```
+
+    **Fix 2:** Clean Xcode derived data:
+
+    In Xcode: **Product → Clean Build Folder** (`Shift+Cmd+K`)
+
+    Or from the terminal:
+
+    ```bash
+    rm -rf ~/Library/Developer/Xcode/DerivedData
+    ```
+
+    **Fix 3:** Ensure you open the **workspace**, not the project:
+
+    ```bash
+    open ios/CashierApp.xcworkspace
+    ```
+
+    <Warning>
+      Opening `CashierApp.xcodeproj` directly (instead of `.xcworkspace`) skips CocoaPods integration and will cause missing framework errors.
+    </Warning>
+  </Accordion>
+
+  <Accordion title='"Unauthenticated." error'>
+    The API returns `"Unauthenticated."` when the stored Bearer token has expired or is invalid.
+
+    The Axios response interceptor in `src/services/api-config/axios.js` handles this by clearing the token from storage:
+
+    ```javascript
+    if (error.response?.data?.message === 'Unauthenticated.') {
+      await storage.clearData('token');
+      return Promise.reject(error);
+    }
+    ```
+
+    **Fix:** Log out and log in again to obtain a fresh token. If the app does not redirect automatically, navigate to the login screen manually.
+  </Accordion>
+
+  <Accordion title="Network errors / API unreachable">
+    If all API calls fail, check the base URL configured in `src/services/api-config/axios.js`:
+
+    ```javascript
+    baseURL: 'https://dossapp.com/api/',
+    timeout: 30000,
+    ```
+
+    **Checklist:**
+    - The device or emulator has an active internet connection.
+    - The device can reach `dossapp.com` (not blocked by a firewall or proxy).
+    - When using an Android emulator, `localhost` on the host machine is accessed via `10.0.2.2`, not `localhost`.
+    - The request timeout is 30 seconds — if the server is slow, individual requests may time out before a response arrives.
+
+    **Temporary override for local development:** Edit `baseURL` in `axios.js` to point at a local or staging server, then revert before committing.
+  </Accordion>
+
+  <Accordion title="Offline mode / OnlineManager modal appears">
+    The app monitors network connectivity using `@react-native-community/netinfo` and shows an `OnlineManager` modal when the device loses internet access.
+
+    If the modal appears unexpectedly:
+    - Check Wi-Fi or mobile data connectivity on the device.
+    - On Android emulators, verify the emulator's network settings.
+    - On iOS simulators, ensure the host Mac has an active network connection.
+
+    The modal dismisses automatically once connectivity is restored.
+  </Accordion>
+
+  <Accordion title="Missing native modules after installing a new package">
+    React Native native modules (written in Java/Kotlin or Objective-C/Swift) require a native rebuild after installation. Adding a package with `yarn add` and restarting Metro is not sufficient.
+
+    **Fix for Android:**
+
+    ```bash
+    yarn android
+    # or for a release build:
+    yarn build-android
+    ```
+
+    **Fix for iOS:**
+
+    ```bash
+    cd ios && pod install && cd ..
+    yarn ios
+    ```
+
+    <Tip>
+      If the module still isn't found after rebuilding, check that it is listed in `android/app/build.gradle` or `ios/Podfile` and that auto-linking succeeded. Run `npx react-native config` to inspect the linking status.
+    </Tip>
+  </Accordion>
+
+  <Accordion title="Firebase or push notifications not working">
+    The app uses `@react-native-firebase/app` and `@react-native-firebase/messaging` together with `@notifee/react-native` for local notifications.
+
+    **Android:** Ensure `android/app/google-services.json` is present and contains valid credentials for the target Firebase project. The Gradle plugin `com.google.gms:google-services:4.4.1` is applied in `android/build.gradle`.
+
+    **iOS:** Ensure `ios/GoogleService-Info.plist` is present and added to the Xcode project's **Copy Bundle Resources** phase. The Podfile configures Firebase pods with modular headers:
+
+    ```ruby
+    pod 'Firebase', :modular_headers => true
+    pod 'FirebaseCore', :modular_headers => true
+    $RNFirebaseAsStaticFramework = true
+    ```
+
+    **Common fixes:**
+    - Replace development config files with the correct environment's files before building.
+    - Rebuild the native app after replacing config files — Metro restart alone is not sufficient.
+    - On iOS, ensure **Push Notifications** and **Background Modes → Remote notifications** capabilities are enabled in Xcode under **Signing & Capabilities**.
+    - Verify the APNs key or certificate is uploaded in the Firebase Console under **Project Settings → Cloud Messaging**.
+  </Accordion>
+
+</AccordionGroup>

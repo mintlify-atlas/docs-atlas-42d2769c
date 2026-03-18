@@ -1,0 +1,139 @@
+---
+title: "Authentication"
+description: "How cashiers sign in to the Doss Cashier App, reset their password, and how authentication state persists across app launches."
+---
+
+The Doss Cashier App supports two login methods: password-based and PIN-based. Both flows send the device's FCM token on each login so push notifications are correctly targeted.
+
+New cashier accounts are provisioned by an admin. There is no self-registration flow in the app.
+
+## Login with password
+
+<Steps>
+  <Step title="Enter phone number">
+    On the `LOGIN_PASSWORD` screen, select your country code using the flag picker (defaults to `+1868` / Trinidad & Tobago) and type your phone number. The input enforces the dial-code prefix and prevents removing it.
+  </Step>
+  <Step title="Enter password">
+    Type your password (minimum 8 characters) in the password field.
+  </Step>
+  <Step title="Submit">
+    Tap **Sign In**. The app calls `POST /v2/cashier/login-password` with the payload:
+
+    ```json
+    {
+      "phone": "+18685551234",
+      "password": "yourpassword",
+      "fcm_last_login_device_token": "<FCM token>"
+    }
+    ```
+
+    The FCM token is read from AsyncStorage (`fcm_token` key). If it is absent, `getAndStoreFCM()` fetches and stores a new token from Firebase before sending the request.
+  </Step>
+  <Step title="Token stored">
+    On success, the response `token` is written to AsyncStorage under the key `token`:
+
+    ```javascript
+    await storage.setData('token', data?.response?.token);
+    ```
+
+    `useAuthStore` is updated: `setLoggedIn(true)` and `setUser(data?.response)`. The navigator resets to `MAIN_STACK`.
+  </Step>
+</Steps>
+
+## Login with PIN
+
+Tap **Sign In With Pin Code** on the password screen to switch to the `LOGIN_PIN` screen. The flow is identical except:
+
+- The password field is replaced by a 4-digit OTP input.
+- The payload field is `pin` instead of `password`.
+- The endpoint is `POST /v2/cashier/login-pin`.
+
+```json
+{
+  "phone": "+18685551234",
+  "pin": "1234",
+  "fcm_last_login_device_token": "<FCM token>"
+}
+```
+
+## Forgot password
+
+<Steps>
+  <Step title="Enter phone number">
+    Tap **Forgot password?** on the login screen. On `FP_PHONE_INPUT`, enter your registered phone number and tap **Reset Password**. This calls `POST /v2/cashier/forget-password` with `{ phone }`.
+  </Step>
+  <Step title="Verify OTP">
+    The platform sends a 6-digit OTP to the phone number. On the `FP_OTP` screen, enter the code and tap **Verify**. The app calls `POST /v2/cashier/verify-otp` with `{ phone, verification_code }`. On success, the response includes a `uuid` for the next step.
+
+    If the code did not arrive, tap **Resend code** to trigger `POST /v2/cashier/forget-password` again.
+  </Step>
+  <Step title="Set new password">
+    On `FP_CREATE_PASSWORD`, enter a new password and confirm it (minimum 8 characters each, values must match). Tap **Update Password**. The app calls `POST /v2/cashier/reset-password` with:
+
+    ```json
+    {
+      "uuid": "<uuid from OTP step>",
+      "password": "newpassword",
+      "confirm_password": "newpassword"
+    }
+    ```
+
+    On success, the navigator goes back to `LOGIN_PASSWORD`.
+  </Step>
+</Steps>
+
+## Authentication state persistence
+
+The Bearer token is stored in AsyncStorage via the `storage` utility (`src/store/LocalStorage/storage.js`). On every API request, the axios instance (`src/services/api-config/axios.js`) reads the token and attaches it as an `Authorization` header:
+
+```javascript
+axios.interceptors.request.use(async config => {
+  const token = await storage.getData('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+```
+
+When the app restarts, `MAIN_STACK` checks for a stored token via the same `storage.getData('token')` call to decide whether to show the authenticated or unauthenticated navigator — no explicit re-login is needed while the token is valid.
+
+## Auto-logout on unauthenticated response
+
+The axios response interceptor watches every API response for `"Unauthenticated."` in the error message:
+
+```javascript
+axios.interceptors.response.use(
+  response => response,
+  async error => {
+    if (error.response?.data?.message === 'Unauthenticated.') {
+      await storage.clearData('token');
+    }
+    return Promise.reject(error);
+  },
+);
+```
+
+Clearing the token causes the navigator to redirect the cashier to the login screen on the next navigation event.
+
+## Zustand auth store
+
+`useAuthStore` (`src/store/StateManager/useAuthStore.js`) is a lightweight Zustand store that holds in-memory authentication state:
+
+```javascript
+export const useAuthStore = create(set => ({
+  loggedIn: false,
+  setLoggedIn: loggedIn => set({ loggedIn }),
+  user: {},
+  setUser: userInfo => set({ user: userInfo }),
+}));
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `loggedIn` | `boolean` | Whether the session is currently authenticated |
+| `user` | `object` | Full user object returned by the login endpoint |
+
+<Note>
+`useAuthStore` is in-memory only. On a cold app launch the store starts with `loggedIn: false` and `user: {}`. Authentication is re-hydrated by checking for a stored token in AsyncStorage rather than persisting the Zustand state itself.
+</Note>

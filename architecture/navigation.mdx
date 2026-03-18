@@ -1,0 +1,176 @@
+---
+title: "Navigation"
+description: "Navigator structure, route name constants, authentication gating, deep link config, and push-notification routing."
+---
+
+The app uses **React Navigation v6** (`@react-navigation/native` + `@react-navigation/native-stack`). All navigators are native stack navigators except the tab bar defined in `Tab.jsx`, which uses `@react-navigation/bottom-tabs`.
+
+## Navigator tree
+
+```
+NavigationContainer
+└── Stack  (Root)
+    └── MAIN_STACK  →  MainStack
+        ├── AUTHED_STACK   →  AuthStack     (when loggedIn === true)
+        └── UNAUTHED_STACK →  UnAuthStack  (when loggedIn === false)
+```
+
+`MainStack` reads `loggedIn` from `useAuthStore` on every render. React Navigation re-evaluates which screen to display whenever that value changes — no explicit `navigation.navigate` call is needed to switch between the authenticated and unauthenticated flows.
+
+<Note>
+The `isFirstLaunch` check (using `AsyncStorage.getItem('alreadyLaunched')`) is already in place. The onboarding screen code is commented out but the infrastructure is ready to re-enable it.
+</Note>
+
+## Route name constants
+
+All route names are string constants exported from `src/utils/enums/routeName.js`. Import them instead of using raw strings.
+
+```javascript
+import {
+  HOME,
+  PROFILE,
+  TRANSACTION_HISTORY,
+  FIND_USER,
+  REQUEST_PAYMENT,
+  DOSS_NOTIFICATIONS,
+  MY_QR_CODE,
+  CHANGE_PIN,
+  CHANGE_PASSWORD,
+  LOGIN_PASSWORD,
+  LOGIN_PIN,
+  FP_PHONE_INPUT,
+  FP_OTP,
+  FP_CREATE_PASSWORD,
+  SUCCESS,
+  ERROR,
+  REQUESTED,
+  REQ_PAYMENT_FAILED,
+  REQ_PAYMENT_SUCCESS,
+  MAIN_STACK,
+  AUTHED_STACK,
+  UNAUTHED_STACK,
+} from '~/utils/enums/routeName';
+```
+
+## Authenticated stack screens
+
+| Constant | Screen component | Notes |
+|---|---|---|
+| `HOME` | `Home` | Initial route |
+| `REQUEST_PAYMENT` | `RequestPayment` | |
+| `FIND_USER` | `FindUser` | |
+| `DOSS_NOTIFICATIONS` | `DossNotifications` | Deep link target |
+| `PROFILE` | `Profile` | |
+| `MY_QR_CODE` | `MyQrCode` | |
+| `TRANSACTION_HISTORY` | `TransactionHistory` | |
+| `ERROR` | `Error` | Alert screen |
+| `REQUESTED` | `Pending` | Alert screen |
+| `REQ_PAYMENT_FAILED` | `RequestedPaymentFailed` | Alert screen |
+| `REQ_PAYMENT_SUCCESS` | `ReqPaymentSuccess` | Alert screen |
+| `SUCCESS` | `Success` | Alert screen |
+| `CHANGE_PIN` | `ChangePin` | |
+| `CHANGE_PASSWORD` | `ChangePassword` | |
+
+## Unauthenticated stack screens
+
+| Constant | Screen component | Notes |
+|---|---|---|
+| `LOGIN_PASSWORD` | `LoginPassword` | Initial route |
+| `LOGIN_PIN` | `LoginPin` | |
+| `FP_PHONE_INPUT` | `FPPhoneInput` | Forgot password flow |
+| `FP_OTP` | `FPCheckOTP` | |
+| `FP_CREATE_PASSWORD` | `FPCreateNewPassword` | |
+
+## Tab navigator
+
+`Tab.jsx` defines a bottom tab navigator with a fully custom `CustomTabBar`. The tab bar renders inside an `HStack` with a pill-shaped dark container for the three main tabs and a floating map button on the right.
+
+| Tab | Screen | Icon (focused / unfocused) |
+|---|---|---|
+| Home | `Home` | `TabHomeFocused` / `TabHome` |
+| History | `TransactionHistory` | `TabTransactionFocused` / `TabTransaction` |
+| Profile | `Profile` | `TabProfileFocused` / `TabProfile` |
+| Merchant | `Merchant` | `TabMap` (always, outside pill) |
+
+<Note>
+The `TabStack` component is defined in `src/navigation/Tab/Tab.jsx` but is not currently mounted in `Root.jsx`. The `AuthStack` renders `Home`, `Profile`, and `TransactionHistory` as individual stack screens instead.
+</Note>
+
+## Triggering navigation
+
+Use the `useNavigation` hook for navigation inside components, and the imperative `navigateRoute` helper for navigation from outside the React tree (e.g., push notification handlers).
+
+```javascript
+// Inside a component
+import { useNavigation } from '@react-navigation/native';
+import { FIND_USER } from '~/utils/enums/routeName';
+
+const { navigate } = useNavigation();
+navigate(FIND_USER);
+
+// Passing params
+navigate(SUCCESS, { paymentData });
+```
+
+```javascript
+// Outside the React tree (e.g., notification handler)
+import { navigateRoute } from '~/utils/helpers/navigate';
+
+await navigateRoute(REQ_PAYMENT_SUCCESS, { paymentData });
+```
+
+The `NavigationContainer` is given a `ref` via `setNavigationRef` from `~/utils/helpers/navigate`, which enables imperative navigation calls.
+
+## Deep links
+
+The `Root` component configures a `linking` object that maps the `DOSS_NOTIFICATIONS` screen to the URL path `Notifications`:
+
+```javascript
+const config = {
+  screens: {
+    [MAIN_STACK]: {
+      screens: {
+        [AUTHED_STACK]: {
+          screens: {
+            [DOSS_NOTIFICATIONS]: 'Notifications',
+          },
+        },
+      },
+    },
+  },
+};
+
+const linking = {
+  prefixes: [deep_link.pre_fix],
+  config,
+};
+```
+
+## Push notification routing
+
+When a foreground FCM message arrives with `payment_data`, the notification handler in `useForegroundNotifications` navigates directly to the appropriate alert screen without displaying a system notification:
+
+```javascript
+switch (status) {
+  case 'success':
+    return navigateRoute(txn_id ? REQ_PAYMENT_SUCCESS : SUCCESS, { paymentData });
+  case 'failed':
+    return navigateRoute(txn_id ? REQ_PAYMENT_FAILED : ERROR, { paymentData });
+}
+```
+
+All other foreground messages are displayed via `notifee.displayNotification`. Tapping a notifee notification opens the deep link URL defined in `deep_link.notification`.
+
+## Screen options
+
+All stacks share the same `screenOptions` object from `~/themes/screenOptions`:
+
+```javascript
+export const screenOptions = {
+  headerShown: false,
+  gestureEnabled: true,
+  animation: isIOS ? 'default' : 'none',
+};
+```
+
+Headers are hidden globally. Individual screens build their own header inside the screen component using `ScreenWrapper` from `~/components/common/ScreenWrapper`.

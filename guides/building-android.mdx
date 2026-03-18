@@ -1,0 +1,156 @@
+---
+title: "Building for Android"
+description: "Bundle JS assets and generate a signed release APK for the Doss Cashier App."
+---
+
+<Warning>
+  Before building a release APK, make sure you have created and configured a **production keystore**. The default `debug.keystore` bundled in the project must not be used in production.
+</Warning>
+
+## Prerequisites
+
+- **Android Studio** (latest stable)
+- **Android SDK** with the following versions (defined in `android/build.gradle`):
+
+  | Setting | Value |
+  |---|---|
+  | `compileSdkVersion` | `34` |
+  | `targetSdkVersion` | `34` |
+  | `minSdkVersion` | `23` |
+  | `buildToolsVersion` | `34.0.0` |
+  | `ndkVersion` | `25.1.8937393` |
+
+- **JDK 17** (required by the Gradle version used in this project)
+- A **release signing keystore** (see [Signing setup](#signing-setup) below)
+- Node `>=18` and Yarn installed
+
+## Build variants
+
+| Variant | JS bundled by Gradle? | Signing key | Use for |
+|---|---|---|---|
+| `debug` | No — Metro serves the bundle | `debug.keystore` | Local development |
+| `release` | Yes — pre-bundled via `build-android` script | Your release keystore | Distribution / store upload |
+
+## Full build process
+
+<Steps>
+  <Step title="Install JS dependencies">
+    ```bash
+    yarn install
+    ```
+  </Step>
+
+  <Step title="Bundle JS assets and build the release APK">
+    Run the `build-android` script from `package.json`. This single command:
+    1. Bundles the JS entry point (`index.js`) into `android/app/src/main/assets/index.android.bundle`
+    2. Copies image assets to `android/app/build/intermediates/res/merged/release/`
+    3. Removes stale drawable and raw resource directories to avoid conflicts
+    4. Runs `./gradlew assembleRelease` inside the `android/` directory
+
+    ```bash
+    yarn build-android
+    ```
+
+    The exact script (from `package.json`) is:
+
+    ```bash
+    react-native bundle --platform android --dev false --entry-file index.js \
+      --bundle-output android/app/src/main/assets/index.android.bundle \
+      --assets-dest android/app/build/intermediates/res/merged/release/ \
+      && rm -rf android/app/src/main/res/drawable-* \
+      && rm -rf android/app/src/main/res/raw/* \
+      && cd android && ./gradlew assembleRelease && cd ..
+    ```
+  </Step>
+
+  <Step title="Locate the APK output">
+    After the Gradle build completes, the signed APK is at:
+
+    ```
+    android/app/build/outputs/apk/release/app-release.apk
+    ```
+
+    To list all generated APKs:
+
+    ```bash
+    ls android/app/build/outputs/apk/release/
+    ```
+  </Step>
+</Steps>
+
+## Running a debug build
+
+For local development, use Metro and the standard run command — no manual bundling required:
+
+```bash
+# Start Metro bundler
+yarn start
+
+# In a separate terminal, deploy to a connected device or emulator
+yarn android
+```
+
+## Signing setup
+
+The project currently uses `debug.keystore` for both `debug` and `release` build types (`android/app/build.gradle` lines 86–103). **For production releases you must replace this with a proper release keystore.**
+
+### 1. Generate a release keystore
+
+```bash
+keytool -genkey -v \
+  -keystore android/app/release.keystore \
+  -alias cashierapp-key \
+  -keyalg RSA \
+  -keysize 2048 \
+  -validity 10000
+```
+
+### 2. Store credentials securely
+
+Add the following to `android/gradle.properties` (do **not** commit this file to version control):
+
+```properties
+RELEASE_STORE_FILE=release.keystore
+RELEASE_KEY_ALIAS=cashierapp-key
+RELEASE_STORE_PASSWORD=your_store_password
+RELEASE_KEY_PASSWORD=your_key_password
+```
+
+### 3. Update `android/app/build.gradle`
+
+Replace the `signingConfigs` block so the `release` build type uses the new keystore:
+
+```groovy
+signingConfigs {
+    debug {
+        storeFile file('debug.keystore')
+        storePassword 'android'
+        keyAlias 'androiddebugkey'
+        keyPassword 'android'
+    }
+    release {
+        storeFile file(RELEASE_STORE_FILE)
+        storePassword RELEASE_STORE_PASSWORD
+        keyAlias RELEASE_KEY_ALIAS
+        keyPassword RELEASE_KEY_PASSWORD
+    }
+}
+buildTypes {
+    debug {
+        signingConfig signingConfigs.debug
+    }
+    release {
+        signingConfig signingConfigs.release
+        minifyEnabled false
+        proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+    }
+}
+```
+
+<Note>
+  The app ID is `com.CashierApp` as declared in `android/app/build.gradle`. Ensure this matches the application ID registered in the Google Play Console.
+</Note>
+
+## Firebase / Google Services
+
+The project applies the `com.google.gms:google-services:4.4.1` Gradle plugin and expects a valid `android/app/google-services.json`. Replace the bundled development file with your production `google-services.json` before building for distribution.

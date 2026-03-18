@@ -1,0 +1,119 @@
+---
+title: "Transaction history"
+description: "Where to view recent and historical transactions, how they are grouped and filtered, and how to refund or cancel them."
+---
+
+Transactions are surfaced in two places: the home screen widget (recent transactions) and the full `TRANSACTION_HISTORY` screen.
+
+## Home screen widget
+
+The home screen fetches recent transactions from `GET /v2/cashier/home` and groups them by date. Tap any row to open a detail modal. The modal shows:
+
+- User avatar, full name, and formatted user ID (e.g., `#ZG-0001` → `#0001`)
+- Amount formatted as `$ X.XX`
+- Payment status
+- Transaction ID (`uuid`)
+- Timestamp formatted as `hh:mm:ss`
+
+From the modal, tap **Refund** (for successful transactions) or **Cancel** (for awaiting requests) to initiate the action. A confirmation alert is shown before calling the API.
+
+Tap **View All** to open the full history screen.
+
+## Full transaction history screen
+
+The full history screen (`TRANSACTION_HISTORY`) uses `useInfiniteQuery` (React Query) to load transactions from `GET /v2/cashier/transactions` with cursor-based pagination:
+
+```javascript
+getNextPageParam: lastPage => {
+  return lastPage?.transactions?.current_page <
+    lastPage?.transactions?.last_page
+    ? lastPage.transactions.current_page + 1
+    : undefined;
+},
+```
+
+Scrolling to within 30% of the bottom triggers `fetchNextPage()` automatically.
+
+The screen also includes a search field (debounced at 300 ms) that appends a `search` query parameter to the endpoint URL.
+
+## Grouping by date
+
+Both the home widget and the full history screen group transactions by date using `formatTransactionDate(transaction.created_at)`. Each group renders a date header followed by its transaction rows.
+
+```javascript
+const groupTransactionsByDate = transactions => {
+  const grouped = {};
+  transactions?.forEach(transaction => {
+    const date = formatTransactionDate(transaction.created_at);
+    if (transaction.cart === null) return; // skip cart-less entries
+    if (grouped[date]) {
+      grouped[date].transactions.push(transaction);
+    } else {
+      grouped[date] = { date, transactions: [transaction] };
+    }
+  });
+  return Object.values(grouped);
+};
+```
+
+## Filter tabs
+
+The full history screen has three filter tabs:
+
+| Tab | Filter logic |
+|---|---|
+| **All** | No filter applied |
+| **Successful** | `Number(item.total) > 0` and `item.status === 'Success'` |
+| **Refunded** | `Number(item.total) < 0` and `item.status === 'Refund'` |
+
+## Transaction statuses
+
+| Status | Display color | Condition |
+|---|---|---|
+| Successful | green | `status !== 'Blocked'` and `total > 0` |
+| Awaiting | skyBlue | `status === 'Awaiting'` |
+| Cancelled | red | `status === 'Blocked'` |
+| Refunded | — | `status !== 'Blocked'` and `total <= 0` |
+
+Status labels are derived at render time:
+
+```javascript
+'Payment ' + (
+  awaiting  ? 'Awaiting'  :
+  blocked   ? 'Cancelled' :
+  Number(transactionDetails?.total) > 0 ? 'Successful' : 'Refunded'
+)
+```
+
+## Transaction object fields
+
+| Field | Type | Description |
+|---|---|---|
+| `uuid` | `string` | Transaction identifier displayed as **Transaction ID** |
+| `id` | `number` | Integer primary key used for refund requests |
+| `total` | `string` | Amount as a numeric string (positive = charge, zero = refunded) |
+| `created_at` | `string` | ISO 8601 timestamp |
+| `status` | `string` | `"Awaiting"`, `"Blocked"`, `"Success"`, or `"Refund"` |
+| `cart` | `object\|null` | Transactions with `cart === null` are excluded from the history |
+| `end_user.first_name` | `string` | Customer's first name |
+| `end_user.last_name` | `string` | Customer's last name |
+| `end_user.picture_path` | `string` | URL of the customer's avatar |
+| `end_user.uuid` | `string` | Customer's Doss user ID (e.g., `ZG-0001`) |
+
+## Refund and cancel actions
+
+| Action | Condition | Endpoint |
+|---|---|---|
+| Cancel | `status === 'Awaiting'` | `GET /v2/cashier/transactions/cancel/{uuid}` |
+| Refund | `status !== 'Awaiting'` and `total > 0` | `GET /v2/cashier/transactions/refund/{id}` |
+
+After a successful refund or cancel, the home screen data is refetched and the `transactions` React Query cache is invalidated.
+
+## API endpoints
+
+| Action | Method | Endpoint |
+|---|---|---|
+| Home data (recent transactions) | `GET` | `/v2/cashier/home` |
+| Full transaction history | `GET` | `/v2/cashier/transactions?search=<term>&page=<n>` |
+| Refund transaction | `GET` | `/v2/cashier/transactions/refund/{id}` |
+| Cancel payment request | `GET` | `/v2/cashier/transactions/cancel/{uuid}` |

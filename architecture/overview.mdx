@@ -1,0 +1,103 @@
+---
+title: "Architecture overview"
+description: "High-level structure of the Doss Cashier App: how the React Native codebase is organized and the key technology decisions."
+---
+
+The Doss Cashier App is a React Native mobile application. The entry point is `App.jsx`, which wires together the global data-fetching client, connectivity monitoring, toast notifications, and the navigation tree before handing control to screens.
+
+## Application bootstrap
+
+The component tree mounted from `App.jsx` follows this order:
+
+```
+App.jsx
+└── QueryClientProvider          (React Query — server-state cache)
+    ├── StatusBar
+    ├── Root                     (navigation tree)
+    ├── OnlineManager            (offline modal — shows when isConnected is false)
+    └── Toast                   (react-native-toast-message with custom toastConfig)
+```
+
+`NetInfo.addEventListener` is called inside a `useEffect` to track network state. When connectivity is lost, `OnlineManager` renders over the screen and offers a **Retry** button that calls `NetInfo.refresh()`.
+
+A single `QueryClient` instance is created once outside the component with `retry: 0` on both queries and mutations:
+
+```javascript
+const client = new QueryClient({
+  mutationCache: new MutationCache({ onError: error => console.log(error) }),
+  queryCache: new QueryCache({ onError: e => console.log(e) }),
+  defaultOptions: { queries: { retry: 0 }, mutations: { retry: 0 } },
+});
+```
+
+## Directory structure
+
+| Directory | Purpose |
+|---|---|
+| `src/assets` | Static assets: images, SVG icons, fonts |
+| `src/components` | Reusable UI — `core/` (primitives), `common/` (composed patterns), `modal/`, `ScreenComp/` |
+| `src/navigation` | Navigator definitions — `Root/` (stack) and `Tab/` (bottom tab) |
+| `src/screens` | Feature screens organized by domain (Authentication, Home, Profile, etc.) |
+| `src/services` | Axios config (`api-config/`), React Query hooks (`api-hooks/`), push notifications (`notifcation/`), and other hooks (`hooks/`) |
+| `src/store` | Global state — Zustand stores in `StateManager/` and AsyncStorage helpers in `LocalStorage/` |
+| `src/themes` | Design tokens: colors, typography, spacing utilities, screen options, toast config |
+| `src/types` | TypeScript type definitions for stylesheets and shared interfaces |
+| `src/utils` | Enums (`routeName`, `endpoints`), dimension utilities, helper functions, constants |
+
+## Key technology decisions
+
+<Columns cols={2}>
+  <Card title="React Native" icon="mobile">
+    Cross-platform iOS/Android app. Screens are built with core primitives from `src/components/core` that wrap React Native `View`, `Text`, and `TextInput`.
+  </Card>
+  <Card title="React Query" icon="database">
+    All server state is fetched and cached via `@tanstack/react-query`. Custom hooks in `src/services/api-hooks/` wrap `useQuery`, `useMutation`, and `useInfiniteQuery`.
+  </Card>
+  <Card title="Zustand" icon="layers">
+    Lightweight global client state. Two stores exist: `useAuthStore` (login state + user object) and `useWallet` (wallet data).
+  </Card>
+  <Card title="Axios" icon="arrow-right-left">
+    A single configured Axios instance at `src/services/api-config/axios.js` handles base URL, 30-second timeout, Bearer token injection, and auto-logout on `Unauthenticated.` responses.
+  </Card>
+</Columns>
+
+## Path aliases
+
+The `~` alias maps to `src/` and is configured in both `babel.config.js` and `tsconfig.json`:
+
+<Tabs>
+  <Tab title="babel.config.js">
+```javascript
+module.exports = {
+  presets: ['module:@react-native/babel-preset'],
+  plugins: [
+    ['module-resolver', {
+      root: ['.'],
+      alias: { '~': './src' },
+    }],
+  ],
+};
+```
+  </Tab>
+  <Tab title="tsconfig.json">
+```json
+{
+  "extends": "@react-native/typescript-config/tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "~/*": ["./src/*"]
+    }
+  }
+}
+```
+  </Tab>
+</Tabs>
+
+Use `~/themes`, `~/components/core`, `~/store/StateManager/useAuthStore`, and so on throughout the codebase instead of relative paths.
+
+## Offline handling
+
+`App.jsx` subscribes to `NetInfo.addEventListener` and stores `state.isConnected` in local component state. When that value is `false` or `null`, the `<OnlineManager visible={isConnected} />` modal is shown. Pressing **Retry** calls `NetInfo.refresh()` and shows a toast indicating whether connectivity was restored.
+
+Push notifications are initialized via `useForegroundNotifications()`, which requests permissions, retrieves and stores the FCM token, and sets up a foreground message listener using `@react-native-firebase/messaging` and `@notifee/react-native`.

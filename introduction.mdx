@@ -1,0 +1,87 @@
+---
+title: "Introduction"
+description: "Doss Cashier App is a React Native mobile application for cashiers operating on the Doss platform."
+---
+
+Doss Cashier App is a React Native mobile application built for cashiers on the Doss platform. It provides a focused set of tools for managing shifts, processing payment requests, reviewing transaction history, and staying up to date with real-time notifications — all from a single mobile interface on Android and iOS.
+
+## Features
+
+<CardGroup cols={2}>
+  <Card title="Shift management" icon="clock" href="/features/shift-management">
+    Start and end shifts, track shift duration, and manage shift state directly from the app.
+  </Card>
+  <Card title="Payment requests" icon="credit-card" href="/features/payment-requests">
+    Create and send payment requests to customers, with support for finding users by account details.
+  </Card>
+  <Card title="Transaction history" icon="list" href="/features/transaction-history">
+    Browse a complete history of processed transactions with filtering and detail views.
+  </Card>
+  <Card title="Notifications" icon="bell" href="/features/notifications">
+    Receive and manage real-time push notifications for payment events and platform alerts.
+  </Card>
+  <Card title="Profile management" icon="user" href="/features/profile">
+    View and update cashier profile information and account settings.
+  </Card>
+  <Card title="Architecture" icon="sitemap" href="/architecture/overview">
+    Explore how navigation, state, API hooks, and theming are structured.
+  </Card>
+</CardGroup>
+
+## Tech stack
+
+The app is built on **React Native 0.73.6** and targets Android SDK 34 (minimum SDK 23) and iOS.
+
+| Category | Library | Version |
+|---|---|---|
+| Framework | react-native | 0.73.6 |
+| UI runtime | react | 18.2.0 |
+| Navigation | @react-navigation/native | ^6.1.16 |
+| Navigation | @react-navigation/native-stack | ^6.9.25 |
+| Server state | @tanstack/react-query | ^5.28.4 |
+| Client state | zustand | ^4.5.2 |
+| HTTP client | axios | ^1.6.8 |
+| Push notifications | @react-native-firebase/messaging | ^19.1.2 |
+| Local notifications | @notifee/react-native | ^7.8.2 |
+| Async storage | @react-native-async-storage/async-storage | ^1.22.3 |
+| Clipboard | @react-native-clipboard/clipboard | ^1.14.1 |
+| Network info | @react-native-community/netinfo | ^11.3.1 |
+| Date formatting | moment | ^2.30.1 |
+| SVG | react-native-svg | ^15.1.0 |
+| Image picker | react-native-image-picker | ^7.1.2 |
+| Document picker | react-native-document-picker | ^9.1.1 |
+| File system | react-native-fs | ^2.20.0 |
+| Toast messages | react-native-toast-message | ^2.2.0 |
+| Safe area | react-native-safe-area-context | ^4.9.0 |
+| Screens | react-native-screens | ^3.29.0 |
+
+## Project structure
+
+```
+CashierApp/
+├── src/
+│   ├── assets/          # Images, fonts, and other static assets
+│   ├── components/      # Shared UI components
+│   ├── navigation/      # React Navigation stack and tab definitions
+│   ├── screens/         # Feature screens (Home, Auth, Notifications, etc.)
+│   ├── services/        # API clients, Firebase, notification handlers
+│   ├── store/           # Zustand state stores
+│   ├── themes/          # Colors, typography, toast styles
+│   ├── types/           # TypeScript type definitions
+│   └── utils/           # Utility functions
+├── android/             # Android native project
+├── ios/                 # iOS native project (Xcode workspace + CocoaPods)
+├── index.js             # App entry point
+└── App.jsx              # Root component
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Prerequisites" icon="list-check" href="/getting-started/prerequisites">
+    Install the tools and configure your environment before building.
+  </Card>
+  <Card title="Installation" icon="download" href="/getting-started/installation">
+    Clone the repository and install all dependencies.
+  </Card>
+</CardGroup>

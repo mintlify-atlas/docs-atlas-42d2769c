@@ -1,0 +1,284 @@
+---
+title: "API layer"
+description: "Axios configuration, Bearer token injection, auto-logout, and all React Query hook wrappers for GET, POST, PUT, DELETE, pagination, file uploads, and custom token requests."
+---
+
+All network communication goes through a single Axios instance. React Query hooks wrap that instance to provide caching, loading/error states, and pagination.
+
+## Axios instance
+
+Location: `src/services/api-config/axios.js`
+
+```javascript
+import Axios from 'axios';
+import storage from '~/store/LocalStorage/storage';
+
+export const axios = Axios.create({
+  baseURL: 'https://dossapp.com/api/',
+  timeout: 30000,
+});
+```
+
+### Request interceptor — token injection
+
+Before every request, the interceptor reads the token from `AsyncStorage` and attaches it:
+
+```javascript
+axios.interceptors.request.use(async config => {
+  const token = await storage.getData('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  config.headers.Accept = 'application/json';
+  return config;
+});
+```
+
+### Response interceptor — auto-logout
+
+If the server returns `message: "Unauthenticated."`, the stored token is cleared. The caller receives a rejected promise so React Query surfaces the error normally:
+
+```javascript
+axios.interceptors.response.use(
+  response => response,
+  async error => {
+    if (error.response?.data?.message === 'Unauthenticated.') {
+      await storage.clearData('token');
+    }
+    return Promise.reject(error);
+  },
+);
+```
+
+<Note>
+After clearing the token, the app does not imperatively navigate to the login screen. The navigation tree re-evaluates automatically once `setLoggedIn(false)` is called — but that call currently happens only in `Root.jsx` on startup, not inside the interceptor. If you need immediate redirect on 401, call `setLoggedIn(false)` from the interceptor using the Zustand store's `getState()`.
+</Note>
+
+## Endpoints
+
+All API paths are exported from `src/utils/enums/endpoints.js`:
+
+| Key | Path |
+|---|---|
+| `login_password` | `POST /v2/cashier/login-password` |
+| `login_pin` | `POST /v2/cashier/login-pin` |
+| `profile` | `GET /v2/cashier/profile` |
+| `home` | `GET /v2/cashier/home` |
+| `transactions` | `GET /v2/cashier/transactions` |
+| `update_image` | `POST /v2/cashier/update_image` |
+| `change_password` | `POST /v2/cashier/change-password` |
+| `forget_password` | `POST /v2/cashier/forget-password` |
+| `change_pin` | `POST /v2/cashier/change-pin` |
+| `refund` | `POST /v2/cashier/transactions/refund/:id` |
+| `cancel` | `POST /v2/cashier/transactions/cancel/:id` |
+| `verify_otp` | `POST /v2/cashier/verify-otp` |
+| `reset_password` | `POST /v2/cashier/reset-password` |
+| `cashier_notification` | `GET /v2/cashier/cashier_notification` |
+| `read_notification` | `POST /v2/readcashier_notification/:id` |
+| `start_shift` | `POST /v2/cashier/shift/start` |
+| `end_shift` | `POST /v2/cashier/shift/end` |
+| `shifts` | `GET /v2/cashier/shifts` |
+| `findUser` | `GET /v2/cashier/findUser` |
+| `requestPayment` | `POST /v2/cashier/request-payment` |
+
+Import and use them:
+
+```javascript
+import endpoints from '~/utils/enums/endpoints';
+
+useGetMethod({ endpoint: endpoints.profile, key: endpoints.profile });
+```
+
+## React Query hooks
+
+All hooks live in `src/services/api-hooks/`.
+
+### useGetMethod
+
+Wraps `useQuery` for standard GET requests.
+
+```javascript
+import { useGetMethod } from '~/services/api-hooks/useGetMethod';
+
+const { data, isPending, isError } = useGetMethod({
+  endpoint: endpoints.home,
+  key: endpoints.home,
+  config: { enabled: !!loggedIn },  // any useQuery options
+});
+```
+
+| Param | Type | Description |
+|---|---|---|
+| `endpoint` | `string` | Full path after the base URL |
+| `key` | `string` | React Query cache key (wrapped in an array internally) |
+| `config` | `object` | Spread into `useQuery` — use for `enabled`, `onSuccess`, `staleTime`, etc. |
+
+`refetchOnWindowFocus` is set to `false` for all calls.
+
+### useGetMethodByParams
+
+GET with a query-string `?id=` parameter appended automatically. The cache key must be a two-element array `[baseKey, id]`.
+
+```javascript
+import { useGetMethodByParams } from '~/services/api-hooks/useGetMethodByParams';
+
+const { data } = useGetMethodByParams({
+  endpoint: endpoints.transactions,
+  key: [endpoints.transactions, transactionId],
+  config: {},
+});
+// Fetches: /v2/cashier/transactions?id=<transactionId>
+```
+
+### useOnScrollMethod
+
+Wraps `useInfiniteQuery` for paginated lists. Automatically increments the page when `fetchNextPage` is called.
+
+```javascript
+import { useOnScrollMethod } from '~/services/api-hooks/useOnScrollMethod';
+
+const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
+  useOnScrollMethod({
+    endpoint: endpoints.transactions,
+    key: endpoints.transactions,
+    config: {},
+  });
+// Page 1: /v2/cashier/transactions?page=1
+// Page 2: /v2/cashier/transactions?page=2  (after fetchNextPage())
+```
+
+The hook reads `data.current_page` and `data.last_page` from the response to determine whether more pages exist.
+
+### usePostMethod
+
+Wraps `useMutation` for POST requests.
+
+```javascript
+import { usePostMethod } from '~/services/api-hooks/usePostMethod';
+
+const { mutate, isPending } = usePostMethod({
+  endpoint: endpoints.login_password,
+  config: {
+    onSuccess: data => { /* handle success */ },
+    onError:   error => { /* handle error */ },
+  },
+});
+
+mutate({ phone: '+1234567890', password: 'secret' });
+```
+
+### usePutMethod
+
+Wraps `useMutation` for PUT requests. Identical API to `usePostMethod`.
+
+```javascript
+import { usePutMethod } from '~/services/api-hooks/usePutMethod';
+
+const { mutate } = usePutMethod({
+  endpoint: endpoints.change_password,
+  config: { onSuccess: () => navigation.goBack() },
+});
+
+mutate({ old_password: 'old', new_password: 'new' });
+```
+
+### useDeleteMethod
+
+Wraps `useMutation` for DELETE requests. The mutation value is appended directly to the endpoint path.
+
+```javascript
+import { useDeleteMethod } from '~/services/api-hooks/useDeleteMethod';
+
+const { mutate } = useDeleteMethod({
+  endpoint: endpoints.refund,   // '/v2/cashier/transactions/refund/'
+  config: { onSuccess: () => queryClient.invalidateQueries([endpoints.transactions]) },
+});
+
+mutate(transactionId);  // DELETE /v2/cashier/transactions/refund/<transactionId>
+```
+
+### useUploadImage
+
+Builds a `multipart/form-data` payload from an image file object and POSTs it.
+
+```javascript
+import { useUploadImage } from '~/services/api-hooks/useUploadImage';
+
+const { mutate } = useUploadImage({
+  endpoint: endpoints.update_image,
+  config: { onSuccess: data => setUser(data.response) },
+});
+
+// imageFile from react-native-image-picker
+mutate({ uri: imageFile.uri, type: imageFile.type, name: imageFile.fileName });
+```
+
+The form field name is `image`.
+
+### useUploadFiles
+
+Uploads multiple files in a single `multipart/form-data` POST. Each key of the object argument becomes a separate form field.
+
+```javascript
+import { useUploadFiles } from '~/services/api-hooks/useUploadFiles';
+
+const { mutate } = useUploadFiles({
+  endpoint: '/v2/cashier/documents',
+  config: {},
+});
+
+mutate({
+  front_id: { uri: '...', type: 'image/jpeg', name: 'front.jpg' },
+  back_id:  { uri: '...', type: 'image/jpeg', name: 'back.jpg' },
+});
+```
+
+### usePostWithCustomToken
+
+Overrides the `Authorization` header with a caller-supplied token instead of the stored session token. Useful for actions that require a temporary or one-time token.
+
+```javascript
+import { usePostWithCustomToken } from '~/services/api-hooks/usePostWIthCustomToken';
+
+const { mutate } = usePostWithCustomToken({
+  endpoint: endpoints.verify_otp,
+  token: temporaryToken,
+  config: { onSuccess: () => navigation.navigate(FP_CREATE_PASSWORD) },
+});
+
+mutate({ otp: '123456' });
+```
+
+## Hook comparison
+
+<CodeGroup>
+
+```javascript GET — useGetMethod
+import { useGetMethod } from '~/services/api-hooks/useGetMethod';
+import endpoints from '~/utils/enums/endpoints';
+
+// Fetches once; result cached under the key
+const { data, isPending } = useGetMethod({
+  endpoint: endpoints.profile,
+  key: endpoints.profile,
+  config: { enabled: !!loggedIn },
+});
+```
+
+```javascript POST — usePostMethod
+import { usePostMethod } from '~/services/api-hooks/usePostMethod';
+import endpoints from '~/utils/enums/endpoints';
+
+// Returns a mutate function; call it with the request body
+const { mutate, isPending } = usePostMethod({
+  endpoint: endpoints.requestPayment,
+  config: {
+    onSuccess: res => navigation.navigate(SUCCESS, { paymentData: res }),
+    onError:   err => Toast.show({ type: 'error', text1: err.message }),
+  },
+});
+
+mutate({ amount: 100, user_id: 42 });
+```
+
+</CodeGroup>
